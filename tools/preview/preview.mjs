@@ -86,6 +86,7 @@ const view = new BoardView({
   loadTexture: (src) => PIXI.Assets.load(/^(\/|https?:)/.test(src) ? src : `/${src}`),
   editText,
   userColor: 0xffa46b,
+  renderer: app.renderer,
   reducedMotion: prefersReducedMotion()
 });
 // No journal here: new strings live only in this page.

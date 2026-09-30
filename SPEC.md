@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); **M3 built; waiting on two GM-only checks by James (lock, deleted-actor card)**
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); M3 built (two GM-only checks by James still open: lock, deleted-actor card); **M4 built, waiting on James's hands-on stutter check**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -220,6 +220,32 @@ Two checks need a GM and are James's: a lock stops Player One from moving or del
 ### M4 — Polish and performance
 Add hover lighting of a card's web and the reduced-motion fallback. Check the theme layer is isolated. Build a 60-card, 100-string test board and profile it.
 **Accept:** Goal 3 is met: frame time is measured on James's machine, with a quick check on an ordinary laptop. The reduced-motion setting and the OS setting both stop ambient motion.
+
+**Result (30 Sep 2026, this laptop: AMD Radeon integrated graphics, 1280×720):**
+
+The first profile of a 60-card, 100-string board ran at **38.6 ms a frame** (about 26 fps). Nearly all of it was PIXI re-triangulating every string and about 2,700 light dots every frame. Fixes:
+- The light is a pool of sprites cut from the star texture. The pure function `flowDots()` places them without allocating anything.
+- A string is redrawn only once it has moved 0.75 px.
+- Portraits are cropped to a circle once, when they load, instead of each carrying a PIXI mask.
+- The nebula sky is baked into one quarter-resolution texture.
+
+Results after the fixes:
+
+| Where | Average frame | Notes |
+|---|---|---|
+| Preview | 7.7 ms | |
+| Foundry, whole board on screen | 10.9 ms | |
+| Foundry, table zoom (0.6) | 10.3 ms | Our update is 0.8 ms of that; the rest is PIXI's render |
+| Foundry, reduced motion | 9.8 ms | |
+
+The slowest 5% of frames reach 16–22 ms in the browser pane. That pane is a hidden window, which throttles and delays GPU work, so those spikes can't be read as stutter. `tools/stress-foundry.js` measures real frame rate in a visible browser for James's hands-on check.
+
+What remains is draw calls. The multi-stroke glows on strings (3.5 ms) and card plates (3.4 ms) are too big for PIXI to batch. If a real board ever needs more, the next step is textured ribbons for strings and nine-slice plates for cards.
+
+**Also in M4:**
+- **Hover lighting.** Hovering a card lights its web and dims everything else; hovering a label lights its string and two cards. Checked live.
+- **Reduce motion.** A per-player setting that also follows the OS preference, and applies live. Checked live.
+- **Theme.** The theme holds every colour, and a test fails on any colour literal in drawing code or the stylesheet.
 
 ### M5 — Live
 Deploy to the Lightsail box by hand, following the Poise & Break routine, and install it in the pathfinder world. James runs a ten-minute check with one player. The first Grayce session starts the Goal 1 test.

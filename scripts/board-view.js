@@ -36,6 +36,9 @@ const FLOW_SPRITE_SCALE = 4.5;
 const DIM = 0.28;
 const DIM_FRAME = 0.5;
 const LIGHT_EASE = 0.12;
+/** The baked backdrop: at most a quarter of board resolution, and never over 4096 px on a side. */
+const SKY_BAKE_RESOLUTION = 0.25;
+const SKY_BAKE_MAX_SIZE = 4096;
 
 export class BoardView {
   /** (cardId, {x, y}) when the user finishes dragging a card. */
@@ -71,13 +74,14 @@ export class BoardView {
    * @param {(request: object) => Promise<string|null>} [options.editText]  Resolves the new text, or null to cancel
    * @param {(item: object) => boolean} [options.canModify]  Whether this user may move or edit an item
    * @param {number|null} [options.userColor]   Colour for strings this user draws
+   * @param {PIXI.Renderer} [options.renderer]  Used to bake the static backdrop into one texture
    * @param {boolean} [options.reducedMotion]
    */
   constructor({
     PIXI, root, theme, rect, cards = [], strings = [], frames = [], makeText, loadTexture, editText,
-    canModify = () => true, userColor = null, reducedMotion = false
+    canModify = () => true, userColor = null, renderer = null, reducedMotion = false
   }) {
-    Object.assign(this, { PIXI, root, theme, rect, makeText, loadTexture, editText, canModify, userColor, reducedMotion });
+    Object.assign(this, { PIXI, root, theme, rect, makeText, loadTexture, editText, canModify, userColor, renderer, reducedMotion });
     this.initial = { cards, strings, frames };
     this.cards = new Map();
     this.strings = new Map();
@@ -114,6 +118,7 @@ export class BoardView {
       container.destroy({ children: true });
     }
     this.glowTexture?.destroy(true);
+    this.skyTexture?.destroy(true);
     for (const round of this.portraits?.values() ?? []) round.destroy(true);
     this.portraits = null;
     this.layers = null;
@@ -1114,27 +1119,54 @@ export class BoardView {
     await Promise.all(faces.map((face) => globalThis.document?.fonts?.load(face).catch(() => null)));
   }
 
-  #buildSky() {
+  /**
+   * The backdrop and its nebulae, as a container of plain sprites. Dozens of
+   * huge overlapping translucent clouds are expensive to fill every frame on a
+   * laptop GPU, so when a renderer is available they are baked once into one
+   * low-resolution texture (they are soft, so nothing is lost) and the board
+   * draws a single sprite. Baking also clips them to the board, with no mask.
+   */
+  #buildBackdrop(nebulae) {
     const { PIXI, theme, rect } = this;
-    // Nebulae are far bigger than the board; keep them inside it.
-    const clip = this.layers.sky.addChild(new PIXI.Graphics());
-    clip.beginFill(0, 1); // A mask's colour is never seen; only its shape matters.
-    clip.drawRect(rect.x, rect.y, rect.width, rect.height);
-    clip.endFill();
-    this.layers.sky.mask = clip;
-    const backdrop = this.layers.sky.addChild(new PIXI.Graphics());
-    backdrop.beginFill(theme.background, 1);
-    backdrop.drawRect(rect.x, rect.y, rect.width, rect.height);
-    backdrop.endFill();
-    const { stars, nebulae } = starfieldData(rect, theme);
+    const backdrop = new PIXI.Container();
+    const fill = backdrop.addChild(new PIXI.Graphics());
+    fill.beginFill(theme.background, 1);
+    fill.drawRect(rect.x, rect.y, rect.width, rect.height);
+    fill.endFill();
     for (const n of nebulae) {
-      const sprite = this.layers.sky.addChild(new PIXI.Sprite(this.glowTexture));
+      const sprite = backdrop.addChild(new PIXI.Sprite(this.glowTexture));
       sprite.anchor.set(0.5);
       sprite.position.set(n.x, n.y);
       sprite.width = sprite.height = n.r * 2;
       sprite.tint = n.color;
       sprite.alpha = n.alpha;
     }
+    if (!this.renderer) {
+      // No renderer to bake with: draw it live, clipped to the board by a mask.
+      const clip = backdrop.addChild(new PIXI.Graphics());
+      clip.beginFill(0, 1); // A mask's colour is never seen; only its shape matters.
+      clip.drawRect(rect.x, rect.y, rect.width, rect.height);
+      clip.endFill();
+      backdrop.mask = clip;
+      return backdrop;
+    }
+    const resolution = Math.min(SKY_BAKE_RESOLUTION, SKY_BAKE_MAX_SIZE / Math.max(rect.width, rect.height));
+    this.skyTexture = this.renderer.generateTexture(backdrop, {
+      region: new PIXI.Rectangle(rect.x, rect.y, rect.width, rect.height),
+      resolution
+    });
+    backdrop.destroy({ children: true });
+    const baked = new PIXI.Sprite(this.skyTexture);
+    baked.position.set(rect.x, rect.y);
+    baked.width = rect.width;
+    baked.height = rect.height;
+    return baked;
+  }
+
+  #buildSky() {
+    const { PIXI, theme, rect } = this;
+    const { stars, nebulae } = starfieldData(rect, theme);
+    this.layers.sky.addChild(this.#buildBackdrop(nebulae));
     for (const data of stars) {
       const sprite = this.layers.sky.addChild(new PIXI.Sprite(this.glowTexture));
       sprite.anchor.set(0.5);

@@ -133,6 +133,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       editText: (request) => this.#editInHud(request),
       canModify: (item) => canModify(item, game.user),
       userColor: colorOfUser(game.user.id),
+      renderer: canvas.app.renderer,
       reducedMotion: reduceMotion()
     });
     view.onCardMoved = (id, { x, y }) => this.updatePages([{ _id: id, system: { x, y } }]);
