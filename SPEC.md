@@ -278,7 +278,9 @@ Other items after v1: the cork theme, personal boards, templates, a tidy-up layo
 
 ## 12. Risks and open checks
 
-- **`dropCanvasData` for players.** Confirm that the hook fires and that returning `false` stops core's token creation when a PLAYER drops an Actor (M2).
+- **`dropCanvasData` for players.** Confirmed in M2: the hook fires, and returning `false` stops core's token creation.
+- **Players could not drag actors at all.** James found this on his first hands-on try. v14's actor directory allows a drag only for users with `TOKEN_CREATE`, which is limited to Assistant GM and above and cannot be granted to players. It decides this when the sidebar renders, by setting each entry's `draggable` attribute. Threadwork now wraps `CONFIG.ui.actors`'s `_canDragStart` (`scripts/actor-drag.js`) to allow the drag while on the board, and re-renders the actor list when a non-token-creator moves on or off the board. Items and journals never had the restriction. M2's automated check had called the drop hook directly and so skipped the drag start.
+- **Players only see actors at OBSERVER or higher in their sidebar** (LIMITED is not enough in v14). So players drag their own characters, and NPC cards are placed by the GM, unless the GM grants Observer. Players can still draw strings to any card on the board.
 - **Always-on motion on weak laptops.** Measure it at M4. Reduced motion is the fallback.
 - **The pathfinder world's history of loading problems.** Part 1 runs with the Bastion module off. The board scene is light, but recheck after Bastion or pf2e updates.
 - **The board journal in the sidebar.** It is hidden cosmetically. Trusting the table covers anyone who opens it anyway.

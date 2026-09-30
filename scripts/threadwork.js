@@ -3,6 +3,7 @@
 // sub-types declared in module.json and the board's canvas layer, wires
 // Foundry's hooks to them, and re-exports everything the tests need.
 import { MODULE_ID, PAGE_TYPES } from "./constants.js";
+import { allowActorDragOnBoard, refreshActorDrag } from "./actor-drag.js";
 import { ensureBoardScene, isBoardScene } from "./board-scene.js";
 import { DATA_MODELS, ensureBoardJournal, isBoardJournal } from "./data.js";
 import { onDropCanvasData } from "./drops.js";
@@ -16,6 +17,7 @@ export * from "./board-scene.js";
 export * from "./data.js";
 export * from "./navigation.js";
 export * from "./draw/starfield.js";
+export * from "./actor-drag.js";
 export { ThreadworkLayer };
 
 Hooks.once("init", () => {
@@ -25,6 +27,10 @@ Hooks.once("init", () => {
   CONFIG.Canvas.layers[MODULE_ID] = { layerClass: ThreadworkLayer, group: "interface" };
 });
 
+// After every init (a system may swap in its own actor directory, as pf2e
+// does) but before the sidebar first renders and binds its drag rule.
+Hooks.once("setup", () => allowActorDragOnBoard(CONFIG.ui.actors));
+
 Hooks.once("ready", async () => {
   const scene = await ensureBoardScene(constellation);
   await ensureBoardJournal(scene);
@@ -33,6 +39,7 @@ Hooks.once("ready", async () => {
 // Modeless (SPEC.md 5.5): on the board scene the board layer is simply active,
 // so nobody has to pick a tool first. Leaving the board hands control back to tokens.
 Hooks.on("canvasReady", (board) => {
+  refreshActorDrag(isBoardScene(board.scene));
   if (isBoardScene(board.scene)) {
     board[MODULE_ID]?.activate();
     board[MODULE_ID]?.reopenDrafts();
