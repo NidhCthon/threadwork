@@ -18,8 +18,8 @@ test("it targets Foundry v14", () => {
   assert.match(manifest.compatibility.verified, /^14\./);
 });
 
-test("every esmodule it lists exists", async () => {
-  for (const path of manifest.esmodules) await access(new URL(path, root));
+test("every esmodule and stylesheet it lists exists", async () => {
+  for (const path of [...manifest.esmodules, ...manifest.styles]) await access(new URL(path, root));
 });
 
 test("it declares exactly the page sub-types the code knows", () => {
@@ -31,6 +31,12 @@ test("init registers a data model for every declared sub-type, under the module 
   for (const type of Object.keys(manifest.documentTypes.JournalEntryPage)) {
     assert.equal(CONFIG.JournalEntryPage.dataModels[`threadwork.${type}`], threadwork.DATA_MODELS[type], type);
   }
+});
+
+test("init registers the board layer in the interface group", () => {
+  assert.equal(CONFIG.Canvas.layers.threadwork.layerClass, threadwork.ThreadworkLayer);
+  assert.equal(CONFIG.Canvas.layers.threadwork.group, "interface");
+  assert.equal(threadwork.ThreadworkLayer.layerOptions.name, "threadwork", "canvas.threadwork is how the control finds it");
 });
 
 test("the download URL carries the manifest's version", () => {

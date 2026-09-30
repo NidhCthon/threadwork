@@ -35,9 +35,22 @@ globalThis.foundry = {
     TypeDataModel: class {
       static defineSchema() { return {}; }
     }
+  },
+  canvas: {
+    layers: {
+      InteractionLayer: class {
+        static get layerOptions() { return { name: "", zIndex: 0 }; }
+      }
+    }
   }
 };
 
-globalThis.CONFIG = { JournalEntryPage: { dataModels: {} } };
+globalThis.CONFIG = { JournalEntryPage: { dataModels: {} }, Canvas: { layers: {} } };
+
+globalThis.CONST = {
+  DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
+  GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 },
+  FOG_EXPLORATION_MODES: { DISABLED: 0, INDIVIDUAL: 1, SHARED: 2 }
+};
 
 export const threadwork = await import(new URL("../scripts/threadwork.js", import.meta.url));

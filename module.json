@@ -15,6 +15,9 @@
   "esmodules": [
     "scripts/threadwork.js"
   ],
+  "styles": [
+    "styles/threadwork.css"
+  ],
   "documentTypes": {
     "JournalEntryPage": {
       "card": {},

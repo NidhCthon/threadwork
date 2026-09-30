@@ -5,7 +5,9 @@
 # only when no Foundry is running on this data folder.
 param(
   [string]$Root = "K:\foundry-dev",
-  [int]$Port = 30001
+  [int]$Port = 30001,
+  # Launched straight away, so a restart lands in the world instead of on Setup.
+  [string]$World = "threadwork-dev"
 )
 
 $data = Join-Path $Root "data"
@@ -22,4 +24,6 @@ if (Test-Path $lock) {
   Write-Host "Removed a stale lock left by a killed server."
 }
 
-node (Join-Path $Root "app\main.js") "--dataPath=$data" "--port=$Port" --noupnp
+$launch = @("--dataPath=$data", "--port=$Port", "--noupnp")
+if ($World) { $launch += "--world=$World" }
+node (Join-Path $Root "app\main.js") @launch

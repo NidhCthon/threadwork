@@ -1,0 +1,17 @@
+/* The label editor sits in the canvas HUD at board coordinates; the HUD's own
+   scale transform keeps it the same size as the label it replaces. */
+.threadwork-label-input {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  min-width: 260px;
+  padding: 8px 16px;
+  border: 1.5px solid #8ec5ff;
+  border-radius: 12px;
+  background: #0a0f26;
+  box-shadow: 0 0 18px rgba(90, 130, 255, 0.45);
+  color: #e9eeff;
+  font-family: "Signika", sans-serif;
+  text-align: center;
+  outline: none;
+}

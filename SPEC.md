@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; **M0 done**, M1 (feel test) next
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; **M1 built, waiting on James's feel check**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -193,7 +193,10 @@ Deploy to the Lightsail box by hand, following the Poise & Break routine, and in
 ## 7. Testing
 
 - **Unit tests** (`node --test tests/*.test.mjs`) cover geometry (edge attachment, bowing offsets, label placement, snapping), data validation, undo inversion, visibility and lock rules, and drop handling. They run against a stubbed Foundry and fake PIXI. Run them with the glob; a bare `tests/` argument fails misleadingly.
-- **Preview harness** (`tools/preview`): real PIXI 7.4.3 from jsDelivr, running the pure draw functions and the motion loop. This is where visual changes get reviewed and screenshotted. Use the ticker-freeze trick for mid-animation frames.
+- **Preview harness** (`tools/preview`): real PIXI 7.4.3 from jsDelivr, running `BoardView` (the same drawing and motion the canvas layer uses) without Foundry. This is where visual changes get reviewed.
+  - **Start it** with `node tools/preview/serve.mjs`, then open `http://localhost:30010/tools/preview/`. It needs its own server because Foundry sends `.html` from its data folder as `text/plain`.
+  - **Fonts and art.** The server passes `/fonts`, `/icons` and `/systems` through from the local Foundry, so nothing from Foundry is copied into the repo.
+  - **Screenshots.** `await threadworkPreview.snapshot(name, seconds)` freezes the animation, renders it, and saves a PNG to `tools/preview/.snapshots/` (gitignored). The Foundry canvas can post a frame to the same `/__snapshot` endpoint. Use this when the browser pane is behind another window and cannot screenshot.
 - **Two-tab local test:** GM and player tabs in the local world, driven from the browser pane, to check sync and permissions.
 - **Live:** only at M5, with James driving, because the pathfinder GM account has a password.
 

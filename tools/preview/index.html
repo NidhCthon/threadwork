@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Threadwork preview</title>
+<!-- Run `node tools/preview/serve.mjs` and open http://localhost:30010/tools/preview/
+     Fonts and portraits are passed through from the local Foundry, so nothing
+     from Foundry is copied into this repo. -->
+<link rel="stylesheet" href="/fonts/signika/signika.css">
+<link rel="stylesheet" href="../../styles/threadwork.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #060818; }
+  #board { position: fixed; inset: 0; }
+  #hud { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .bar { position: fixed; top: 12px; left: 12px; z-index: 2; display: flex; gap: 12px; align-items: center;
+         color: #cfd8ff; font: 15px "Signika", sans-serif; }
+  .bar button { font: inherit; color: inherit; background: #10173a; border: 1px solid #3c4f99; border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js"></script>
+</head>
+<body>
+  <div id="board"></div>
+  <div id="hud"></div>
+  <div class="bar">
+    <button type="button" id="motion">Reduce motion</button>
+    <span>Drag the cards. Double-click the label to edit it.</span>
+  </div>
+  <script type="module" src="preview.mjs"></script>
+</body>
+</html>
