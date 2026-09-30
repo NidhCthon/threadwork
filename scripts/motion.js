@@ -17,6 +17,9 @@ export const SETTLE_SMOOTH = 0.25;
 export const APPEAR_SECONDS = 0.35;
 export const GROW_SECONDS = 0.45;
 
+/** Seconds for a removed card to fade, or a removed string to draw itself back. */
+export const LEAVE_SECONDS = 0.25;
+
 /** Ease-out: fast at first, settling at the end. */
 export const easeOut = (t) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
 

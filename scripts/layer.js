@@ -5,10 +5,34 @@
 import { MODULE_ID } from "./constants.js";
 import { BoardView } from "./board-view.js";
 import { isBoardScene } from "./board-scene.js";
+import { closeMenu, showMenu } from "./context-menu.js";
 import { cardViewData, isBoardJournal, pageType, stringCreateData, stringViewData } from "./data.js";
 import { prefersReducedMotion } from "./motion.js";
 import { goBack, goToBoard } from "./navigation.js";
 import { constellation } from "./themes/constellation.js";
+import { UndoStack, beforeOf, cascadeFor } from "./undo.js";
+
+/** This user's own board edits, for Ctrl+Z. Per browser tab; gone on reload. */
+export const history = new UndoStack();
+
+/**
+ * Apply an undo operation to the journal. Pages already in the state asked for
+ * are skipped, so undoing something someone else has since changed does not throw.
+ */
+export async function applyOperation(journal, op) {
+  if (op.kind === "create") {
+    // Cards before strings, so a restored string's cards are there when it draws.
+    const rank = (p) => (p.type === pageType("card") ? 0 : 1);
+    const fresh = op.pages.filter((p) => !journal.pages.has(p._id)).sort((a, b) => rank(a) - rank(b));
+    if (fresh.length) await journal.createEmbeddedDocuments("JournalEntryPage", fresh, { keepId: true });
+  } else if (op.kind === "delete") {
+    const ids = op.pages.map((p) => p._id).filter((id) => journal.pages.has(id));
+    if (ids.length) await journal.deleteEmbeddedDocuments("JournalEntryPage", ids);
+  } else if (op.kind === "update") {
+    const updates = op.changes.filter((c) => journal.pages.has(c._id)).map((c) => ({ _id: c._id, ...c.after }));
+    if (updates.length) await journal.updateEmbeddedDocuments("JournalEntryPage", updates);
+  }
+}
 
 const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
 
@@ -27,6 +51,12 @@ const colorOfUser = (userId) => {
 };
 
 const resolve = (uuid) => (uuid ? fromUuidSync(uuid, { strict: false }) ?? null : null);
+
+/** Open a card's document the way its own sidebar would: journal pages open in their journal. */
+function openSheet(doc) {
+  if (doc.documentName === "JournalEntryPage") return doc.parent?.sheet?.render(true, { pageId: doc.id });
+  return doc.sheet?.render(true);
+}
 
 export const cardFromPage = (page) => cardViewData(page, resolve(page.system.uuid));
 export const stringFromPage = (page) => stringViewData(page, colorOfUser(page.system.author));
@@ -81,9 +111,10 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       userColor: colorOfUser(game.user.id),
       reducedMotion: prefersReducedMotion()
     });
-    view.onCardMoved = (id, { x, y }) => journal?.pages.get(id)?.update({ system: { x, y } });
-    view.onLabelChanged = (id, label) => journal?.pages.get(id)?.update({ system: { label } });
+    view.onCardMoved = (id, { x, y }) => this.updatePage(id, { system: { x, y } });
+    view.onLabelChanged = (id, label) => this.updatePage(id, { system: { label } });
     view.onConnect = (from, to) => this.#connect(journal, from, to);
+    view.onContextMenu = ({ kind, id, clientX, clientY }) => this.#openMenu(kind, id, { x: clientX, y: clientY });
     this.view = view;
     await view.build();
     this.#tick = () => this.view?.update(canvas.app.ticker.deltaMS / 1000);
@@ -105,6 +136,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
   }
 
   async _tearDown(options) {
+    closeMenu();
     if (this.#tick) canvas.app.ticker.remove(this.#tick);
     this.#tick = null;
     if (this.#editor) {
@@ -125,7 +157,106 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     const [page] = await journal.createEmbeddedDocuments("JournalEntryPage", [
       stringCreateData({ id: from.id, name: from.name }, { id: to.id, name: to.name }, game.user.id)
     ]);
+    if (page) history.record({ kind: "create", pages: [page.toObject()] });
     return page?.id ?? null;
+  }
+
+  /* -------------------------------------------- */
+  /*  Undoable edits                              */
+  /* -------------------------------------------- */
+
+  /** Change a board page, remembering what it was so Ctrl+Z can put it back. */
+  async updatePage(id, after) {
+    const page = boardJournal()?.pages.get(id);
+    if (!page) return;
+    const before = beforeOf(page.toObject(), after);
+    await page.update(after);
+    history.record({ kind: "update", changes: [{ _id: id, before, after }] });
+  }
+
+  /** Take a card off the board, with every string attached to it. The document itself is untouched. */
+  async removeCard(id) {
+    const journal = boardJournal();
+    if (!journal) return;
+    const pages = cascadeFor(id, journal.pages.contents.map((p) => p.toObject()), pageType("string"));
+    if (!pages.length) return;
+    await journal.deleteEmbeddedDocuments("JournalEntryPage", pages.map((p) => p._id));
+    history.record({ kind: "delete", pages });
+  }
+
+  async removeString(id) {
+    const journal = boardJournal();
+    const page = journal?.pages.get(id);
+    if (!page) return;
+    const pages = [page.toObject()];
+    await journal.deleteEmbeddedDocuments("JournalEntryPage", [id]);
+    history.record({ kind: "delete", pages });
+  }
+
+  async undo() {
+    const journal = boardJournal();
+    const op = journal && history.takeUndo();
+    if (!op) return false;
+    await applyOperation(journal, op);
+    return true;
+  }
+
+  async redo() {
+    const journal = boardJournal();
+    const op = journal && history.takeRedo();
+    if (!op) return false;
+    await applyOperation(journal, op);
+    return true;
+  }
+
+  /** Ctrl+Z, from core's keybinding, while the board layer is active. */
+  _onUndoKey(_event) {
+    if (!this.view || !history.canUndo) return false;
+    this.undo();
+    return true;
+  }
+
+  /** Delete or Backspace, from core's keybinding: remove whatever the pointer is over. */
+  _onDeleteKey(_event) {
+    const target = this.view?.hovered();
+    if (!target) return false;
+    if (target.kind === "card") this.removeCard(target.id);
+    else this.removeString(target.id);
+    return true;
+  }
+
+  /* -------------------------------------------- */
+  /*  Right-click menu                            */
+  /* -------------------------------------------- */
+
+  #openMenu(kind, id, at) {
+    const journal = boardJournal();
+    const page = journal?.pages.get(id);
+    if (!page) return;
+    if (kind === "card") {
+      const card = this.view?.cards.get(id)?.data;
+      const doc = page.system.uuid ? fromUuidSync(page.system.uuid, { strict: false }) : null;
+      const items = [];
+      if (doc && doc.testUserPermission?.(game.user, "LIMITED")) {
+        items.push({ label: "Open sheet", icon: "fa-solid fa-book-open", action: () => openSheet(doc) }, "-");
+      }
+      // "Remove from board", not "delete": the actor, item or journal itself is not touched.
+      items.push({ label: "Remove from board", icon: "fa-solid fa-xmark", danger: true, action: () => this.removeCard(id) });
+      showMenu(at, items, { title: card?.name ?? page.name });
+      return;
+    }
+    const s = page.system;
+    const name = (cardId) => this.view?.cards.get(cardId)?.data.name ?? "?";
+    const arrows = (value) => () => this.updatePage(id, { system: { arrows: value } });
+    showMenu(at, [
+      { label: "One way", icon: "fa-solid fa-arrow-right-long", current: s.arrows === "forward", action: arrows("forward") },
+      { label: "Both ways", icon: "fa-solid fa-arrows-left-right", current: s.arrows === "both", action: arrows("both") },
+      { label: "No arrow", icon: "fa-solid fa-minus", current: s.arrows === "none", action: arrows("none") },
+      { label: "Reverse direction", icon: "fa-solid fa-right-left", action: () => this.updatePage(id, { system: { from: s.to, to: s.from } }) },
+      "-",
+      { label: "Edit label", icon: "fa-solid fa-pen", action: () => this.view?.editString(id) },
+      { label: "Delete string", icon: "fa-solid fa-trash", danger: true, action: () => this.removeString(id) }
+    ], { title: `${name(s.from)} → ${name(s.to)}` });
   }
 
   /* -------------------------------------------- */

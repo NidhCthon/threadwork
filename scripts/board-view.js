@@ -5,7 +5,7 @@
 // listen for what the user did through the on* callbacks.
 import { boxContains, controlPoint, curveThrough, quadLength, quadPoint, splitCurve } from "./geometry.js";
 import {
-  APPEAR_SECONDS, CARD_SMOOTH, CONTROL_SMOOTH, GROW_SECONDS, SETTLE_SMOOTH,
+  APPEAR_SECONDS, CARD_SMOOTH, CONTROL_SMOOTH, GROW_SECONDS, LEAVE_SECONDS, SETTLE_SMOOTH,
   advanceFlow, dampPoint, driftOffset, easeOut, stepClock
 } from "./motion.js";
 import { drawCardPlate, drawHandle, drawPortraitRing } from "./draw/card.js";
@@ -25,6 +25,8 @@ export class BoardView {
   onLabelChanged = null;
   /** Called when the user draws a string between two cards: (fromId, toId) => Promise<stringId|null>. */
   onConnect = null;
+  /** Called on a right-click that did not pan: ({kind: "card"|"string", id, clientX, clientY}). */
+  onContextMenu = null;
 
   /**
    * @param {object} options
@@ -51,6 +53,8 @@ export class BoardView {
     this.topZ = 0;
     this.connecting = null;
     this.pendingEdit = null;
+    /** Cards and strings fading out after removal; no longer in `cards` or `strings`. */
+    this.leaving = new Set();
   }
 
   async build() {
@@ -127,13 +131,43 @@ export class BoardView {
     return card;
   }
 
-  removeCard(id) {
+  removeCard(id, { animate = true } = {}) {
     const card = this.cards.get(id);
     if (!card) return;
     if (this.connecting?.from === card) this.#endConnect(null);
     this.cards.delete(id);
+    card.container.eventMode = "none";
+    if (animate && !this.reducedMotion) {
+      card.leavingKind = "card";
+      this.leaving.add(card);
+    } else this.#destroyCard(card);
+  }
+
+  #destroyCard(card) {
     card.container.parent?.removeChild(card.container);
     card.container.destroy({ children: true });
+  }
+
+  /** What the pointer is over, for the Delete key: a string's label wins over the card under it. */
+  hovered() {
+    for (const string of this.strings.values()) if (string.hover) return { kind: "string", id: string.data.id };
+    for (const card of this.cards.values()) if (card.hover) return { kind: "card", id: card.data.id };
+    return null;
+  }
+
+  /**
+   * A right-click opens the menu only if the pointer did not move, because a
+   * right-drag pans the board. The press is not stopped, so panning from on
+   * top of a card still works.
+   */
+  #wireContextMenu(target, kind, id) {
+    let pressed = null;
+    target.on("rightdown", (event) => { pressed = { x: event.global.x, y: event.global.y }; });
+    target.on("rightclick", (event) => {
+      const still = pressed && Math.hypot(event.global.x - pressed.x, event.global.y - pressed.y) < 6;
+      pressed = null;
+      if (still) this.onContextMenu?.({ kind, id: id(), clientX: event.clientX, clientY: event.clientY });
+    });
   }
 
   /** Size-dependent parts: hit area, pivot and handles. */
@@ -197,6 +231,7 @@ export class BoardView {
 
   #wireCard(card) {
     const { container } = card;
+    this.#wireContextMenu(container, "card", () => card.data.id);
     container.on("pointerenter", () => this.#setHover(card, true));
     container.on("pointerleave", () => this.#setHover(card, false));
     container.on("pointerdown", (event) => {
@@ -328,15 +363,24 @@ export class BoardView {
     return string;
   }
 
-  removeString(id) {
+  removeString(id, { animate = true } = {}) {
     const string = this.strings.get(id);
     if (!string) return;
     this.strings.delete(id);
+    string.label.eventMode = "none";
+    this.#reindexStrings();
+    // It draws itself back toward its start; with nothing drawn yet there is nothing to retract.
+    if (animate && !this.reducedMotion && string.lastCurve) {
+      string.leavingKind = "string";
+      this.leaving.add(string);
+    } else this.#destroyString(string);
+  }
+
+  #destroyString(string) {
     for (const part of [string.line, string.flow, string.label]) {
       part.parent?.removeChild(part);
       part.destroy({ children: true });
     }
-    this.#reindexStrings();
   }
 
   /**
@@ -379,9 +423,10 @@ export class BoardView {
 
   #wireLabel(string) {
     const { label } = string;
+    this.#wireContextMenu(label, "string", () => string.data.id);
     // Hovering a label holds both its cards still, so it does not slide away mid-read.
-    label.on("pointerenter", () => this.#hold(string, 1));
-    label.on("pointerleave", () => this.#hold(string, -1));
+    label.on("pointerenter", () => { string.hover = true; this.#hold(string, 1); });
+    label.on("pointerleave", () => { string.hover = false; this.#hold(string, -1); });
     label.on("pointerdown", (event) => event.stopPropagation());
     label.on("pointertap", () => {
       const now = performance.now();
@@ -455,22 +500,52 @@ export class BoardView {
     }
 
     for (const string of this.strings.values()) this.#updateString(string, dt, reduced);
+    for (const item of this.leaving) this.#updateLeaving(item, dt);
     if (this.connecting) this.#drawConnecting();
+  }
+
+  /** A removed card shrinks and fades; a removed string draws itself back toward its start. */
+  #updateLeaving(item, dt) {
+    if (item.leavingKind === "card") {
+      item.appear -= dt / LEAVE_SECONDS;
+      const shown = easeOut(Math.max(0, item.appear));
+      item.container.alpha = shown;
+      item.container.scale.set(0.85 + 0.15 * shown);
+      if (item.appear <= 0) {
+        this.leaving.delete(item);
+        this.#destroyCard(item);
+      }
+      return;
+    }
+    item.grow -= dt / LEAVE_SECONDS;
+    const shown = easeOut(Math.max(0, item.grow));
+    drawString(item.line, splitCurve(item.lastCurve, Math.max(0.001, shown)), this.theme, { color: this.#colorOf(item), arrows: item.data.arrows });
+    item.flow.clear();
+    item.label.alpha = shown;
+    if (item.grow <= 0) {
+      this.leaving.delete(item);
+      this.#destroyString(item);
+    }
   }
 
   #updateString(string, dt, reduced) {
     const from = this.cards.get(string.data.from)?.box;
     const to = this.cards.get(string.data.to)?.box;
     if (!from || !to) {
-      string.line.clear();
+      // A card was just removed and this string's own removal is on its way:
+      // hold its last shape rather than blinking out a moment early.
+      if (!string.lastCurve) {
+        string.line.clear();
+        string.label.visible = false;
+      }
       string.flow.clear();
-      string.label.visible = false;
       return;
     }
     const target = controlPoint(from, to, string);
     string.control ??= { ...target, vx: 0, vy: 0 };
     dampPoint(string.control, target, reduced ? CARD_SMOOTH / 3 : CONTROL_SMOOTH, dt);
     const full = curveThrough(from, to, string.control, this.theme.string.pad);
+    string.lastCurve = full;
     string.grow = Math.min(1, string.grow + dt / GROW_SECONDS);
     const grown = easeOut(string.grow);
     const curve = grown < 1 ? splitCurve(full, grown) : full;

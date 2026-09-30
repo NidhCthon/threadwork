@@ -3,7 +3,8 @@
 // the token or map note core would make.
 import { isBoardScene } from "./board-scene.js";
 import { DROPPABLE, cardCreateData, pageType } from "./data.js";
-import { boardJournal } from "./layer.js";
+import { boardJournal, history } from "./layer.js";
+import { beforeOf } from "./undo.js";
 
 /**
  * The dropCanvasData hook. Returning false stops core's own handling, which is
@@ -27,7 +28,14 @@ export async function dropDocument(data) {
   const create = cardCreateData(doc, { x: data.x, y: data.y }, game.user.id);
   // One card per document: dropping it again moves the card you already have.
   const existing = journal.pages.find((p) => p.type === pageType("card") && p.system.uuid === doc.uuid);
-  if (existing) return existing.update({ system: { x: create.system.x, y: create.system.y } });
+  if (existing) {
+    const after = { system: { x: create.system.x, y: create.system.y } };
+    const before = beforeOf(existing.toObject(), after);
+    await existing.update(after);
+    history.record({ kind: "update", changes: [{ _id: existing.id, before, after }] });
+    return existing;
+  }
   const [page] = await journal.createEmbeddedDocuments("JournalEntryPage", [create]);
+  if (page) history.record({ kind: "create", pages: [page.toObject()] });
   return page ?? null;
 }

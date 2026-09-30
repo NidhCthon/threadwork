@@ -15,3 +15,66 @@
   text-align: center;
   outline: none;
 }
+
+/* The right-click menu, in screen space so it reads the same at any zoom. */
+.threadwork-menu {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid rgba(134, 170, 255, 0.7);
+  border-radius: 12px;
+  background: rgba(10, 15, 38, 0.97);
+  box-shadow: 0 0 24px rgba(90, 130, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: #e9eeff;
+  font-family: "Signika", sans-serif;
+  font-size: 17px;
+}
+
+.threadwork-menu header {
+  padding: 6px 10px 8px;
+  color: #a9b6de;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.threadwork-menu hr {
+  width: 100%;
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid rgba(134, 170, 255, 0.25);
+}
+
+.threadwork-menu button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.threadwork-menu button:hover,
+.threadwork-menu button:focus-visible {
+  background: rgba(90, 130, 255, 0.22);
+  outline: none;
+}
+
+.threadwork-menu button i {
+  width: 18px;
+  text-align: center;
+  color: #8ec5ff;
+}
+
+.threadwork-menu button.current i { color: #ffffff; }
+.threadwork-menu button.current { background: rgba(90, 130, 255, 0.12); }
+.threadwork-menu button.danger,
+.threadwork-menu button.danger i { color: #ff9a9a; }

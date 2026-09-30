@@ -18,6 +18,7 @@ export * from "./data.js";
 export * from "./navigation.js";
 export * from "./draw/starfield.js";
 export * from "./actor-drag.js";
+export * from "./undo.js";
 export { ThreadworkLayer };
 
 Hooks.once("init", () => {
@@ -25,6 +26,17 @@ Hooks.once("init", () => {
     CONFIG.JournalEntryPage.dataModels[`${MODULE_ID}.${type}`] = DATA_MODELS[type];
   }
   CONFIG.Canvas.layers[MODULE_ID] = { layerClass: ThreadworkLayer, group: "interface" };
+  // Core has Ctrl+Z (it reaches the layer's _onUndoKey) but no redo.
+  game.keybindings.register(MODULE_ID, "redo", {
+    name: "Redo on the Party Board",
+    editable: [{ key: "KeyZ", modifiers: ["Control", "Shift"] }, { key: "KeyY", modifiers: ["Control"] }],
+    onDown: () => {
+      const layer = canvas?.[MODULE_ID];
+      if (!layer?.view || !layer.active) return false;
+      layer.redo();
+      return true;
+    }
+  });
 });
 
 // After every init (a system may swap in its own actor directory, as pf2e

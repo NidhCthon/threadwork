@@ -47,6 +47,9 @@ globalThis.foundry = {
 
 globalThis.CONFIG = { JournalEntryPage: { dataModels: {} }, Canvas: { layers: {} } };
 
+export const keybindings = [];
+globalThis.game = { keybindings: { register: (module, name, options) => keybindings.push({ module, name, options }) } };
+
 globalThis.CONST = {
   DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
   GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 },

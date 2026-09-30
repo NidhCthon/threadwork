@@ -39,6 +39,13 @@ test("init registers the board layer in the interface group", () => {
   assert.equal(threadwork.ThreadworkLayer.layerOptions.name, "threadwork", "canvas.threadwork is how the control finds it");
 });
 
+test("init registers a redo key, since core only has undo", async () => {
+  const { keybindings } = await import("./foundry.mjs");
+  const redo = keybindings.find((k) => k.module === "threadwork" && k.name === "redo");
+  assert.ok(redo, "a redo keybinding exists");
+  assert.deepEqual(redo.options.editable[0], { key: "KeyZ", modifiers: ["Control", "Shift"] });
+});
+
 test("the download URL carries the manifest's version", () => {
   assert.ok(manifest.download.includes(`/v${manifest.version}/`), manifest.download);
 });
