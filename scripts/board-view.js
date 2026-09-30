@@ -10,7 +10,7 @@ import {
 } from "./motion.js";
 import { drawBadge, drawCardPlate, drawHandle, drawPortraitRing } from "./draw/card.js";
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
-import { drawFlow, drawLabelDot, drawLabelPlate, drawString } from "./draw/string.js";
+import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
 
 const DOUBLE_TAP_MS = 350;
@@ -22,6 +22,20 @@ const SNAP_PAD = 14;
 const ALIGN_SCREEN_PX = 8;
 /** Smallest card heights, by kind; notes and concepts grow taller to fit their words. */
 const MIN_HEIGHT = { text: 96, hub: 150 };
+/**
+ * A string is re-drawn only once it has moved this far, in board pixels.
+ * Redrawing makes PIXI re-triangulate the curve, which is what costs; drift
+ * moves a card about 0.05 px a frame, so this redraws each string every
+ * fifteen frames or so, and every frame while it is being dragged. Under a
+ * pixel at table zoom, so the lag cannot be seen.
+ */
+const REDRAW_EPSILON = 0.75;
+/** A light dot's sprite is this many times its radius across (the texture's bright core is small). */
+const FLOW_SPRITE_SCALE = 4.5;
+/** While a web is lit, how bright everything outside it stays, and how fast the change eases. */
+const DIM = 0.28;
+const DIM_FRAME = 0.5;
+const LIGHT_EASE = 0.12;
 
 export class BoardView {
   /** (cardId, {x, y}) when the user finishes dragging a card. */
@@ -100,6 +114,8 @@ export class BoardView {
       container.destroy({ children: true });
     }
     this.glowTexture?.destroy(true);
+    for (const round of this.portraits?.values() ?? []) round.destroy(true);
+    this.portraits = null;
     this.layers = null;
   }
 
@@ -278,17 +294,12 @@ export class BoardView {
     const px = 14 + r;
     const py = data.h / 2;
     drawPortraitRing(body.addChild(new PIXI.Graphics()), px, py, r, theme);
-    if (texture) {
-      const sprite = new PIXI.Sprite(texture);
+    const round = texture ? this.#roundPortrait(data.img, texture, r - 2) : null;
+    if (round) {
+      const sprite = body.addChild(new PIXI.Sprite(round));
       sprite.anchor.set(0.5);
       sprite.position.set(px, py);
-      sprite.scale.set((r * 2) / Math.min(texture.width, texture.height));
-      const mask = body.addChild(new PIXI.Graphics());
-      mask.beginFill(0xffffff, 1);
-      mask.drawCircle(px, py, r - 2);
-      mask.endFill();
-      sprite.mask = mask;
-      body.addChild(sprite);
+      sprite.width = sprite.height = (r - 2) * 2;
     }
     const textX = 14 + c.portrait + 22;
     const name = body.addChild(this.makeText(data.name ?? "", c.name));
@@ -297,6 +308,34 @@ export class BoardView {
     const caption = body.addChild(this.makeText(words, c.caption));
     caption.position.set(textX, 72);
     card.captionText = caption;
+  }
+
+  /**
+   * A portrait cropped to a circle once, when it loads, and cached by image.
+   * A PIXI mask per card would break the GPU batch on every portrait: at 60
+   * cards that is dozens of extra draw calls a frame. Drawn at twice the
+   * on-board size so it stays sharp when zoomed in.
+   */
+  #roundPortrait(src, texture, radius) {
+    this.portraits ??= new Map();
+    const key = `${src}|${radius}`;
+    if (this.portraits.has(key)) return this.portraits.get(key);
+    const source = texture.baseTexture?.resource?.source;
+    if (!source || !globalThis.document) return texture;
+    const size = Math.ceil(radius * 4);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+    // Cover the circle, like background-size: cover, from the texture's own frame.
+    const { x, y, width, height } = texture.frame;
+    const side = Math.min(width, height);
+    ctx.drawImage(source, x + (width - side) / 2, y + (height - side) / 2, side, side, 0, 0, size, size);
+    const round = this.PIXI.Texture.from(canvas);
+    this.portraits.set(key, round);
+    return round;
   }
 
   /** A note or a concept: its words, wrapped to the card, which grows to fit them. */
@@ -692,8 +731,18 @@ export class BoardView {
     if (!this.alive) return null;
     if (this.strings.has(data.id)) return this.updateString(data);
     const { PIXI } = this;
-    const flow = this.layers.flow.addChild(new PIXI.Graphics());
-    flow.blendMode = PIXI.BLEND_MODES.ADD;
+    // The light is a fixed pool of sprites, sized for light both ways: moving
+    // sprites is cheap, and they all batch into one draw.
+    const flow = this.layers.flow.addChild(new PIXI.Container());
+    const dots = [];
+    for (let i = 0; i < flowDotCount(this.theme, true); i++) {
+      const dot = flow.addChild(new PIXI.Sprite(this.glowTexture));
+      dot.anchor.set(0.5);
+      dot.blendMode = PIXI.BLEND_MODES.ADD;
+      dot.tint = this.theme.string.flow.color;
+      dot.alpha = 0;
+      dots.push(dot);
+    }
     const label = this.layers.labels.addChild(new PIXI.Container());
     label.eventMode = "static";
     label.cursor = "text";
@@ -704,8 +753,10 @@ export class BoardView {
     const string = {
       data: { ...data }, index: 0, count: 1, flip: data.from > data.to,
       line: this.layers.strings.addChild(new PIXI.Graphics()),
-      flow, label, plate, text, badges, control: null, phase: 0, lastTap: 0, editing: false, hover: false,
-      grow: animate && !this.reducedMotion ? 0 : 1
+      flow, dots, label, plate, text, badges, control: null, phase: 0, lastTap: 0, editing: false, hover: false,
+      grow: animate && !this.reducedMotion ? 0 : 1,
+      /** The curve and style last drawn, so an unmoved string is not redrawn. */
+      drawn: null, drawnKey: null
     };
     this.strings.set(data.id, string);
     this.#reindexStrings();
@@ -726,6 +777,7 @@ export class BoardView {
     }
     if (!string.editing && before.label !== string.data.label) string.text.text = string.data.label ?? "";
     this.#layoutLabel(string);
+    string.drawnKey = null;
     return string;
   }
 
@@ -791,7 +843,7 @@ export class BoardView {
     const empty = !string.data.label;
     const w = empty ? 16 : Math.max(l.minWidth, string.text.width + l.padX * 2);
     const h = empty ? 16 : Math.max(l.text.fontSize, string.text.height) + l.padY * 2;
-    if (empty) drawLabelDot(string.plate, this.#colorOf(string));
+    if (empty) drawLabelDot(string.plate, this.#colorOf(string), this.theme);
     else drawLabelPlate(string.plate, w, h, this.theme, this.#colorOf(string));
     // An empty label is a small dot, but still an easy target to double-click or right-click.
     const reach = empty ? 14 : 0;
@@ -800,7 +852,7 @@ export class BoardView {
     this.#drawBadges(string.badges, string.data, w);
     string.badges.position.set(-w / 2, -h / 2);
     // Anything not public is drawn a little fainter, so it reads as set apart.
-    string.line.alpha = string.data.visibility && string.data.visibility !== "everyone" ? 0.6 : 1;
+    string.baseAlpha = string.data.visibility && string.data.visibility !== "everyone" ? 0.6 : 1;
   }
 
   #wireLabel(string) {
@@ -873,11 +925,46 @@ export class BoardView {
   /*  Animation                                   */
   /* -------------------------------------------- */
 
+  /**
+   * The web to light up: the hovered card, its strings and the cards at their
+   * other ends; or a hovered label, its string and its two cards. Nothing is
+   * lit while a new string is being drawn, since the pointer is passing over
+   * cards on its way somewhere else.
+   */
+  #focus() {
+    if (this.connecting) return null;
+    for (const string of this.strings.values()) {
+      if (!string.hover) continue;
+      return { cards: new Set([string.data.from, string.data.to]), strings: new Set([string]) };
+    }
+    let card = null;
+    for (const c of this.cards.values()) if (c.hover) card = c;
+    if (!card) return null;
+    const id = card.data.id;
+    const cards = new Set([id]);
+    const strings = new Set();
+    for (const string of this.strings.values()) {
+      if (string.data.from !== id && string.data.to !== id) continue;
+      strings.add(string);
+      cards.add(string.data.from);
+      cards.add(string.data.to);
+    }
+    return { cards, strings };
+  }
+
   /** Advance every animation by `dt` seconds and redraw what moved. */
   update(dt) {
     if (!this.alive) return;
     this.time += dt;
     const reduced = this.reducedMotion;
+    const focus = this.#focus();
+    const ease = 1 - Math.exp(-dt / LIGHT_EASE);
+    // Ease an item's brightness toward full (in the lit web, or nothing lit) or dim.
+    const light = (item, lit) => {
+      item.lit ??= 1;
+      item.lit += ((lit ? 1 : DIM) - item.lit) * (dt > 0 ? ease : 1);
+      return item.lit;
+    };
 
     if (!reduced) {
       for (const star of this.stars) if (star.data.twinkle) star.sprite.alpha = starAlpha(star.data, this.time);
@@ -887,28 +974,42 @@ export class BoardView {
       const smooth = frame.dragging ? CARD_SMOOTH : SETTLE_SMOOTH;
       dampPoint(frame.pos, frame.target, reduced ? smooth / 3 : smooth, dt);
       frame.appear = Math.min(1, frame.appear + dt / APPEAR_SECONDS);
-      frame.container.alpha = easeOut(frame.appear);
+      frame.lit ??= 1;
+      frame.lit += ((focus ? DIM_FRAME : 1) - frame.lit) * (dt > 0 ? ease : 1);
+      frame.container.alpha = easeOut(frame.appear) * frame.lit;
       frame.container.position.set(frame.pos.x, frame.pos.y);
     }
 
     for (const card of this.cards.values()) {
       const still = card.hover || card.dragging || card.carried || card.holds > 0;
+      // With reduced motion the drift clock simply stops, so a card rests where it
+      // is instead of jumping back to its unmoved position.
       stepClock(card.clock, dt, !still && !reduced);
       const smooth = card.dragging || card.carried ? CARD_SMOOTH : SETTLE_SMOOTH;
       dampPoint(card.pos, card.target, reduced ? smooth / 3 : smooth, dt);
-      const drift = reduced ? { x: 0, y: 0 } : driftOffset(card.data.id, card.clock.time);
+      const drift = driftOffset(card.data.id, card.clock.time);
       card.box = { x: card.pos.x + drift.x, y: card.pos.y + drift.y, w: card.data.w, h: card.data.h };
       card.appear = Math.min(1, card.appear + dt / APPEAR_SECONDS);
       const shown = easeOut(card.appear);
-      card.container.alpha = shown;
+      card.container.alpha = shown * light(card, !focus || focus.cards.has(card.data.id));
       card.container.scale.set(0.9 + 0.1 * shown);
       card.container.position.set(card.box.x + card.data.w / 2, card.box.y + card.data.h / 2);
       card.handles.visible = card.hover || this.connecting?.from === card;
     }
 
-    for (const string of this.strings.values()) this.#updateString(string, dt, reduced);
+    for (const string of this.strings.values()) {
+      this.#updateString(string, dt, reduced);
+      const lit = light(string, !focus || focus.strings.has(string));
+      string.line.alpha = (string.baseAlpha ?? 1) * lit;
+      string.flow.alpha = lit;
+      string.label.alpha *= lit;
+    }
     for (const item of this.leaving) this.#updateLeaving(item, dt);
-    drawGuides(this.guideLines, this.guides, this.theme, this.#scale);
+    // Guides change only while a card is dragged; don't redraw an unchanged set.
+    if (this.guides !== this.drawnGuides) {
+      drawGuides(this.guideLines, this.guides, this.theme, this.#scale);
+      this.drawnGuides = this.guides;
+    }
     if (this.connecting) this.#drawConnecting();
   }
 
@@ -929,7 +1030,7 @@ export class BoardView {
     item.grow -= dt / LEAVE_SECONDS;
     const shown = easeOut(Math.max(0, item.grow));
     drawString(item.line, splitCurve(item.lastCurve, Math.max(0.001, shown)), this.theme, { color: this.#colorOf(item), arrows: item.data.arrows });
-    item.flow.clear();
+    item.flow.visible = false;
     item.label.alpha = shown;
     if (item.grow <= 0) {
       this.leaving.delete(item);
@@ -947,7 +1048,7 @@ export class BoardView {
         string.line.clear();
         string.label.visible = false;
       }
-      string.flow.clear();
+      string.flow.visible = false;
       return;
     }
     const target = controlPoint(from, to, string);
@@ -959,12 +1060,28 @@ export class BoardView {
     const grown = easeOut(string.grow);
     const curve = grown < 1 ? splitCurve(full, grown) : full;
     const color = this.#colorOf(string);
-    drawString(string.line, curve, this.theme, { color, arrows: string.data.arrows });
-    if (reduced || grown < 1) string.flow.clear();
-    else {
+    const key = `${color}|${string.data.arrows}`;
+    if (grown < 1 || key !== string.drawnKey || !curvesClose(curve, string.drawn, REDRAW_EPSILON)) {
+      drawString(string.line, curve, this.theme, { color, arrows: string.data.arrows });
+      string.drawn = grown < 1 ? null : curve;
+      string.drawnKey = grown < 1 ? null : key;
+    }
+    string.flow.visible = !reduced && grown >= 1;
+    if (string.flow.visible) {
       const length = quadLength(curve);
       string.phase = advanceFlow(string.phase, dt, this.theme.string.flow.speed, length);
-      drawFlow(string.flow, curve, this.theme, string.phase, length, { both: string.data.arrows === "none" });
+      const { dots } = string;
+      // Unused slots are made invisible, not just transparent: PIXI skips an
+      // invisible sprite entirely, where a transparent one still gets transformed.
+      const used = flowDots(curve, this.theme, string.phase, length, { both: string.data.arrows === "none" }, (i, x, y, alpha, radius) => {
+        const dot = dots[i];
+        dot.visible = alpha > 0;
+        if (!dot.visible) return;
+        dot.alpha = alpha;
+        dot.position.set(x, y);
+        dot.width = dot.height = radius * FLOW_SPRITE_SCALE;
+      });
+      for (let i = used; i < dots.length; i++) dots[i].visible = false;
     }
     const mid = quadPoint(full, 0.5);
     string.label.position.set(mid.x, mid.y);
@@ -1001,7 +1118,7 @@ export class BoardView {
     const { PIXI, theme, rect } = this;
     // Nebulae are far bigger than the board; keep them inside it.
     const clip = this.layers.sky.addChild(new PIXI.Graphics());
-    clip.beginFill(0xffffff, 1);
+    clip.beginFill(0, 1); // A mask's colour is never seen; only its shape matters.
     clip.drawRect(rect.x, rect.y, rect.width, rect.height);
     clip.endFill();
     this.layers.sky.mask = clip;

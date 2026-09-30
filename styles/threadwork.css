@@ -1,3 +1,8 @@
+/* Every colour here comes from the active theme, published by
+   scripts/theme-css.js as space-separated RGB custom properties
+   (--threadwork-surface, -text, -muted, -accent, -border, -glow, -danger),
+   so this file holds no colours of its own. */
+
 /* The label editor sits in the canvas HUD at board coordinates; the HUD's own
    scale transform keeps it the same size as the label it replaces. */
 .threadwork-label-input {
@@ -6,15 +11,17 @@
   pointer-events: auto;
   min-width: 260px;
   padding: 8px 16px;
-  border: 1.5px solid #8ec5ff;
+  border: 1.5px solid rgb(var(--threadwork-accent));
   border-radius: 12px;
-  background: #0a0f26;
-  box-shadow: 0 0 18px rgba(90, 130, 255, 0.45);
-  color: #e9eeff;
+  background: rgb(var(--threadwork-surface));
+  box-shadow: 0 0 18px rgb(var(--threadwork-glow) / 0.45);
+  color: rgb(var(--threadwork-text));
   font-family: "Signika", sans-serif;
   text-align: center;
   outline: none;
 }
+
+.threadwork-label-input::placeholder { color: rgb(var(--threadwork-muted) / 0.8); }
 
 /* Notes and concepts are edited in a textarea the width of the card. */
 textarea.threadwork-label-input {
@@ -33,18 +40,18 @@ textarea.threadwork-label-input {
   flex-direction: column;
   min-width: 220px;
   padding: 6px;
-  border: 1px solid rgba(134, 170, 255, 0.7);
+  border: 1px solid rgb(var(--threadwork-border) / 0.7);
   border-radius: 12px;
-  background: rgba(10, 15, 38, 0.97);
-  box-shadow: 0 0 24px rgba(90, 130, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5);
-  color: #e9eeff;
+  background: rgb(var(--threadwork-surface) / 0.97);
+  box-shadow: 0 0 24px rgb(var(--threadwork-glow) / 0.35), 0 8px 24px rgb(0 0 0 / 0.5);
+  color: rgb(var(--threadwork-text));
   font-family: "Signika", sans-serif;
   font-size: 17px;
 }
 
 .threadwork-menu header {
   padding: 6px 10px 8px;
-  color: #a9b6de;
+  color: rgb(var(--threadwork-muted));
   font-size: 14px;
   letter-spacing: 0.02em;
 }
@@ -53,7 +60,7 @@ textarea.threadwork-label-input {
   width: 100%;
   margin: 4px 0;
   border: none;
-  border-top: 1px solid rgba(134, 170, 255, 0.25);
+  border-top: 1px solid rgb(var(--threadwork-border) / 0.25);
 }
 
 .threadwork-menu button {
@@ -73,14 +80,14 @@ textarea.threadwork-label-input {
 
 .threadwork-menu button:hover,
 .threadwork-menu button:focus-visible {
-  background: rgba(90, 130, 255, 0.22);
+  background: rgb(var(--threadwork-glow) / 0.22);
   outline: none;
 }
 
 .threadwork-menu button i {
   width: 18px;
   text-align: center;
-  color: #8ec5ff;
+  color: rgb(var(--threadwork-accent));
 }
 
 .threadwork-menu .threadwork-swatches {
@@ -93,16 +100,22 @@ textarea.threadwork-label-input {
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid rgb(var(--threadwork-text) / 0.25);
   border-radius: 50%;
 }
 
-.threadwork-menu .threadwork-swatches button.current { border-color: #ffffff; box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
-.threadwork-menu .threadwork-swatches button.reset {
-  background: linear-gradient(135deg, transparent 45%, #ff9a9a 45%, #ff9a9a 55%, transparent 55%), #0a0f26;
+.threadwork-menu .threadwork-swatches button.current {
+  border-color: rgb(var(--threadwork-text));
+  box-shadow: 0 0 8px rgb(var(--threadwork-text) / 0.6);
 }
 
-.threadwork-menu button.current i { color: #ffffff; }
-.threadwork-menu button.current { background: rgba(90, 130, 255, 0.12); }
+.threadwork-menu .threadwork-swatches button.reset {
+  background:
+    linear-gradient(135deg, transparent 45%, rgb(var(--threadwork-danger)) 45%, rgb(var(--threadwork-danger)) 55%, transparent 55%),
+    rgb(var(--threadwork-surface));
+}
+
+.threadwork-menu button.current i { color: rgb(var(--threadwork-text)); }
+.threadwork-menu button.current { background: rgb(var(--threadwork-glow) / 0.12); }
 .threadwork-menu button.danger,
-.threadwork-menu button.danger i { color: #ff9a9a; }
+.threadwork-menu button.danger i { color: rgb(var(--threadwork-danger)); }

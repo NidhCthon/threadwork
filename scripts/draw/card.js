@@ -17,7 +17,7 @@ export function drawCardPlate(g, w, h, theme, { hover = false, color = null, hub
     g.lineStyle({ width: ring * (hub ? 9 : 7), color: tint, alpha: glow / ring, alignment: 1 });
     g.drawRoundedRect(0, 0, w, h, c.radius);
   }
-  g.lineStyle({ width: style.borderWidth, color: hover ? 0xffffff : (color ?? c.border), alpha: c.borderAlpha, alignment: 0.5 });
+  g.lineStyle({ width: style.borderWidth, color: hover ? c.hoverBorder : (color ?? c.border), alpha: c.borderAlpha, alignment: 0.5 });
   g.beginFill(c.fill, c.fillAlpha);
   g.drawRoundedRect(0, 0, w, h, c.radius);
   g.endFill();
@@ -37,7 +37,7 @@ export function drawHandle(g, theme, color = theme.string.color) {
   g.clear();
   g.lineStyle({ width: 8, color, alpha: 0.25, alignment: 1 });
   g.drawCircle(0, 0, 9);
-  g.lineStyle({ width: 2, color: 0xffffff, alpha: 0.9, alignment: 0.5 });
+  g.lineStyle({ width: 2, color: theme.card.handleRing, alpha: 0.9, alignment: 0.5 });
   g.beginFill(color, 1);
   g.drawCircle(0, 0, 9);
   g.endFill();
@@ -50,7 +50,7 @@ export function drawPortraitRing(g, x, y, r, theme) {
   g.lineStyle({ width: 10, color: c.glow, alpha: 0.22, alignment: 1 });
   g.drawCircle(x, y, r);
   g.lineStyle({ width: 2.5, color: c.ring, alpha: 0.95, alignment: 0.5 });
-  g.beginFill(0x050816, 1);
+  g.beginFill(c.portraitBack, 1);
   g.drawCircle(x, y, r);
   g.endFill();
 }

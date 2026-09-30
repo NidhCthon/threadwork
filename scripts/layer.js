@@ -10,8 +10,8 @@ import {
   CARD_SIZE, canModify, cardViewData, frameCreateData, frameViewData, isBoardJournal, noteCreateData,
   pageType, stringCreateData, stringViewData, visibleTo
 } from "./data.js";
-import { prefersReducedMotion } from "./motion.js";
 import { goBack, goToBoard } from "./navigation.js";
+import { reduceMotion } from "./settings.js";
 import { constellation } from "./themes/constellation.js";
 import { UndoStack, beforeOf, cascadeFor } from "./undo.js";
 
@@ -133,7 +133,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       editText: (request) => this.#editInHud(request),
       canModify: (item) => canModify(item, game.user),
       userColor: colorOfUser(game.user.id),
-      reducedMotion: prefersReducedMotion()
+      reducedMotion: reduceMotion()
     });
     view.onCardMoved = (id, { x, y }) => this.updatePages([{ _id: id, system: { x, y } }]);
     view.onLabelChanged = (id, label) => this.updatePages([{ _id: id, system: { label } }]);

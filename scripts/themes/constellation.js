@@ -36,7 +36,10 @@ export const constellation = {
     glow: 0x5a82ff,
     glowAlpha: 0.16,
     hoverGlowAlpha: 0.34,
+    hoverBorder: 0xffffff,
+    handleRing: 0xffffff,
     portrait: 104,
+    portraitBack: 0x050816,
     ring: 0xa9c4ff,
     name: { fontFamily: "Signika", fontSize: 34, fontWeight: "600", fill: 0xf2f5ff },
     caption: { fontFamily: "Signika", fontSize: 22, fill: 0xa9b6de }
@@ -51,6 +54,18 @@ export const constellation = {
     pad: 10,
     arrow: 20,
     flow: { color: 0xffffff, alpha: 0.9, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 }
+  },
+  // The HTML parts: the text editor and the right-click menu. Applied to the
+  // page as CSS custom properties (see scripts/theme-css.js), so the stylesheet
+  // itself carries no colours of its own.
+  ui: {
+    surface: 0x0a0f26,
+    text: 0xe9eeff,
+    muted: 0xa9b6de,
+    accent: 0x8ec5ff,
+    border: 0x86aaff,
+    glow: 0x5a82ff,
+    danger: 0xff9a9a
   },
   // Colours on offer in the right-click menu for cards, strings and frames.
   palette: [0x8ec5ff, 0xb48cff, 0xff6b9a, 0xff6b6b, 0xffa46b, 0xffe06b, 0x6be0c2, 0xe9eeff],
