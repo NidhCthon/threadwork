@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); **M3 in progress: delete, right-click menu and undo done**
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); **M3 built; waiting on two GM-only checks by James (lock, deleted-actor card)**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -196,6 +196,26 @@ Add frames that move with their cards, hub and text cards, the three visibility 
 - A player cannot move or delete a locked item.
 - Undo only reverses your own actions.
 - Deleting an Actor leaves a greyed-out missing card.
+
+**Result (30 Sep 2026, local world, as Player Two with default PLAYER permissions):**
+- A **private card by Player One was not drawn for Player Two**, and neither was the string leading to it.
+- **Frames.** Dragging a frame by its title carried the card inside it by the same amount, and one Ctrl+Z put both back. Resizing works both ways, and renaming works.
+- **Notes.** A note made from the right-click menu saved. A double-clicked note left empty and cancelled was dropped, and did not become an undo step.
+- **Concepts.** "Make it a concept" widened the note into a concept.
+- **Colour.** A colour swatch saved.
+- **Visibility.** "Only me and the GM" kept the note drawn for its author. "GM only" removed it from the player's board, and Ctrl+Z brought it back.
+- **Snapping.** A card dropped 5 px off another's left edge snapped onto it, with a guide showing.
+- **Captions.** Double-clicking a document card edits its caption.
+- **Players see no Lock item.**
+
+Two checks need a GM and are James's: a lock stops Player One from moving or deleting, and deleting an Actor greys out its card.
+
+**How M3 differs from the text above:**
+- New notes and frames can also be made from the Threadwork toolbar, in the middle of the view.
+- Empty labels draw as a small dot.
+- String fan-out spacing is 96 px, so labels on shared pairs don't overlap.
+- "Only me and the GM" also makes you the item's author, so it is private to you, not to whoever made it.
+- A card whose attached strings are locked can't be removed by a player.
 
 ### M4 — Polish and performance
 Add hover lighting of a card's web and the reduced-motion fallback. Check the theme layer is isolated. Build a 60-card, 100-string test board and profile it.

@@ -16,6 +16,15 @@
   outline: none;
 }
 
+/* Notes and concepts are edited in a textarea the width of the card. */
+textarea.threadwork-label-input {
+  min-width: 0;
+  min-height: 3.2em;
+  resize: none;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
 /* The right-click menu, in screen space so it reads the same at any zoom. */
 .threadwork-menu {
   position: fixed;
@@ -72,6 +81,25 @@
   width: 18px;
   text-align: center;
   color: #8ec5ff;
+}
+
+.threadwork-menu .threadwork-swatches {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.threadwork-menu .threadwork-swatches button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+}
+
+.threadwork-menu .threadwork-swatches button.current { border-color: #ffffff; box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+.threadwork-menu .threadwork-swatches button.reset {
+  background: linear-gradient(135deg, transparent 45%, #ff9a9a 45%, #ff9a9a 55%, transparent 55%), #0a0f26;
 }
 
 .threadwork-menu button.current i { color: #ffffff; }

@@ -64,7 +64,7 @@ Hooks.on("dropCanvasData", onDropCanvasData);
 const layer = () => globalThis.canvas?.[MODULE_ID];
 for (const action of ["create", "update", "delete"]) {
   Hooks.on(`${action}JournalEntryPage`, (page) => {
-    if (isBoardJournal(page.parent)) layer()?.onPage(page, action);
+    if (isBoardJournal(page.parent)) layer()?.sync();
     else layer()?.onDocument(page);
   });
   for (const type of ["Actor", "Item", "JournalEntry"]) {

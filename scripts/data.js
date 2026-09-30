@@ -8,8 +8,12 @@ export const VISIBILITY = ["everyone", "gm", "private"];
 export const ARROWS = ["none", "forward", "both"];
 export const CARD_KINDS = ["document", "text", "hub"];
 
-/** Card sizes by kind. Document cards fit a portrait, a name and a caption at table-readable sizes. */
-export const CARD_SIZE = { document: { w: 380, h: 132 } };
+/**
+ * Card sizes by kind. Document cards fit a portrait, a name and a caption at
+ * table-readable sizes; notes and concepts grow taller to fit their text.
+ */
+export const CARD_SIZE = { document: { w: 380, h: 132 }, text: { w: 340, h: 96 }, hub: { w: 440, h: 150 } };
+export const FRAME_SIZE = { w: 900, h: 560 };
 
 /** The document types a card can be made from, and the image a card uses when the document has none. */
 export const DROPPABLE = ["Actor", "Item", "JournalEntry", "JournalEntryPage"];
@@ -158,6 +162,7 @@ export function cardViewData(page, doc) {
     img: imageOf(doc) ?? s.lastImg ?? null,
     caption: s.caption || captionOf(doc),
     missing,
+    color: s.color == null ? null : Number(s.color),
     visibility: s.visibility,
     author: s.author,
     locked: s.locked
@@ -198,6 +203,54 @@ export function cardCreateData(doc, point, userId) {
       lastImg: imageOf(doc),
       author: userId
     }
+  };
+}
+
+/**
+ * Whether `user` should see an item (SPEC.md 2: trust the table, so this
+ * decides what is drawn, not what is secret). GMs see everything.
+ */
+export function visibleTo(system, user) {
+  if (!system || user?.isGM) return true;
+  if (system.visibility === "gm") return false;
+  if (system.visibility === "private") return system.author === user?.id;
+  return true;
+}
+
+/**
+ * Whether `user` may change an item. The server enforces a lock through the
+ * page's ownership; this decides what the board offers, so nobody is handed an
+ * action that would only be refused.
+ */
+export const canModify = (system, user) => !!user?.isGM || !system?.locked;
+
+/** Creation data for a note or a concept card centred on `point`. */
+export function noteCreateData(kind, point, userId) {
+  const { w, h } = CARD_SIZE[kind];
+  return {
+    type: pageType("card"),
+    name: kind === "hub" ? "Concept" : "Note",
+    system: { kind, uuid: null, x: Math.round(point.x - w / 2), y: Math.round(point.y - h / 2), w, h, caption: "", lastName: "", author: userId }
+  };
+}
+
+/** Creation data for a frame whose centre is `point`. */
+export function frameCreateData(point, userId, title = "New frame") {
+  const { w, h } = FRAME_SIZE;
+  return {
+    type: pageType("frame"),
+    name: title,
+    system: { x: Math.round(point.x - w / 2), y: Math.round(point.y - h / 2), w, h, title, author: userId }
+  };
+}
+
+/** What the board draws for a frame page. */
+export function frameViewData(page) {
+  const s = page.system;
+  return {
+    id: page.id, x: s.x, y: s.y, w: s.w, h: s.h, title: s.title,
+    color: s.color == null ? null : Number(s.color),
+    visibility: s.visibility, author: s.author, locked: s.locked
   };
 }
 

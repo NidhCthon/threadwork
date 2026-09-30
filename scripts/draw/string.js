@@ -58,6 +58,17 @@ export function drawFlow(g, curve, theme, phase, length, { both = false } = {}) 
   }
 }
 
+/** An unlabelled string's handle: a small glowing dot where its label would be. */
+export function drawLabelDot(g, color) {
+  g.clear();
+  g.lineStyle({ width: 8, color, alpha: 0.2, alignment: 1 });
+  g.drawCircle(0, 0, 7);
+  g.lineStyle({ width: 2, color, alpha: 0.9, alignment: 0.5 });
+  g.beginFill(0x0a0f26, 1);
+  g.drawCircle(0, 0, 7);
+  g.endFill();
+}
+
 /** A label's plate, centred on 0, 0. */
 export function drawLabelPlate(g, w, h, theme, color) {
   const l = theme.label;

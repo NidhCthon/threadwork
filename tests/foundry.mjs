@@ -51,7 +51,7 @@ export const keybindings = [];
 globalThis.game = { keybindings: { register: (module, name, options) => keybindings.push({ module, name, options }) } };
 
 globalThis.CONST = {
-  DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
+  DOCUMENT_OWNERSHIP_LEVELS: { INHERIT: -1, NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
   GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 },
   FOG_EXPLORATION_MODES: { DISABLED: 0, INDIVIDUAL: 1, SHARED: 2 }
 };

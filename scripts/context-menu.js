@@ -3,6 +3,33 @@
 
 let open = null;
 
+const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
+
+/**
+ * A row of colour swatches: {swatches: [colours], current, action(colour|null)}.
+ * The last button clears the colour back to the default.
+ */
+function swatchRow(item, close) {
+  const row = document.createElement("div");
+  row.className = "threadwork-swatches";
+  const add = (color, label) => {
+    const button = row.appendChild(document.createElement("button"));
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    if (color === null) button.classList.add("reset");
+    else button.style.background = hex(color);
+    if (color === item.current) button.classList.add("current");
+    button.addEventListener("click", () => {
+      close();
+      item.action(color);
+    });
+  };
+  for (const color of item.swatches) add(color, hex(color));
+  add(null, item.resetLabel ?? "Default colour");
+  return row;
+}
+
 /** Close the open menu, if any. */
 export function closeMenu() {
   open?.close();
@@ -25,6 +52,10 @@ export function showMenu({ x, y }, items, { title } = {}) {
   for (const item of items) {
     if (item === "-") {
       menu.appendChild(document.createElement("hr"));
+      continue;
+    }
+    if (item.swatches) {
+      menu.appendChild(swatchRow(item, () => close()));
       continue;
     }
     const button = menu.appendChild(document.createElement("button"));

@@ -52,6 +52,44 @@ export const constellation = {
     arrow: 20,
     flow: { color: 0xffffff, alpha: 0.9, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 }
   },
+  // Colours on offer in the right-click menu for cards, strings and frames.
+  palette: [0x8ec5ff, 0xb48cff, 0xff6b9a, 0xff6b6b, 0xffa46b, 0xffe06b, 0x6be0c2, 0xe9eeff],
+  // A concept: bigger, brighter, its words centred.
+  hub: {
+    borderWidth: 3,
+    glowAlpha: 0.3,
+    hoverGlowAlpha: 0.5,
+    padX: 26,
+    padY: 24,
+    text: { fontFamily: "Signika", fontSize: 40, fontWeight: "600", fill: 0xffffff, align: "center", wordWrap: true, lineHeight: 48 }
+  },
+  // A free note: plain words on a glowing plate.
+  note: {
+    padX: 22,
+    padY: 18,
+    text: { fontFamily: "Signika", fontSize: 24, fill: 0xe9eeff, wordWrap: true, lineHeight: 31 },
+    placeholder: 0x7d89b3
+  },
+  frame: {
+    fill: 0x1a2350,
+    fillAlpha: 0.16,
+    borderAlpha: 0.6,
+    borderWidth: 2,
+    radius: 26,
+    titleBand: 64,
+    grip: 30,
+    minW: 360,
+    minH: 240,
+    color: 0x86aaff,
+    title: { fontFamily: "Signika", fontSize: 32, fontWeight: "600", fill: 0xdfe6ff }
+  },
+  badge: {
+    text: { fontFamily: "Signika", fontSize: 15, fontWeight: "700", fill: 0x0a0f26, letterSpacing: 1 },
+    gm: 0xffd36b,
+    private: 0xb48cff,
+    locked: 0xa9b6de
+  },
+  guide: { color: 0xffe06b, alpha: 0.85, width: 1.5 },
   label: {
     fill: 0x0a0f26,
     fillAlpha: 0.94,

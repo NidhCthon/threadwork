@@ -3,8 +3,12 @@
 // {x, y, w, h} with x, y at the top-left corner. Nothing here touches PIXI or
 // Foundry, so it runs the same in node, the preview and the canvas.
 
-/** Space between strings that share the same two cards, in pixels of bow. */
-export const STRING_SPACING = 56;
+/**
+ * Space between strings that share the same two cards, in pixels of bow. A
+ * quadratic's midpoint moves half as far as its control point, so this keeps
+ * their labels about 48 px apart: clear of each other at the label font size.
+ */
+export const STRING_SPACING = 96;
 
 export const center = (box) => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
 
@@ -102,6 +106,50 @@ export function splitCurve(curve, t) {
     p1: { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t },
     p2: quadPoint(curve, t)
   };
+}
+
+/** Whether box `b`'s centre lies inside box `frame`: how a frame decides which cards it carries. */
+export const centreInside = (b, frame) => boxContains(frame, center(b));
+
+/**
+ * Nudge a moving box so it lines up with nearby boxes: its left, centre or
+ * right onto theirs within `threshold`, and the same for top, middle and
+ * bottom. Returns the nudge and a guide line for each axis that snapped,
+ * running the length of both boxes.
+ */
+export function snapBox(box, others, threshold) {
+  const xs = (b) => [b.x, b.x + b.w / 2, b.x + b.w];
+  const ys = (b) => [b.y, b.y + b.h / 2, b.y + b.h];
+  let bestX = null;
+  let bestY = null;
+  for (const other of others) {
+    for (const mine of xs(box)) {
+      for (const theirs of xs(other)) {
+        const d = theirs - mine;
+        if (Math.abs(d) <= threshold && (!bestX || Math.abs(d) < Math.abs(bestX.d))) bestX = { d, at: theirs, other };
+      }
+    }
+    for (const mine of ys(box)) {
+      for (const theirs of ys(other)) {
+        const d = theirs - mine;
+        if (Math.abs(d) <= threshold && (!bestY || Math.abs(d) < Math.abs(bestY.d))) bestY = { d, at: theirs, other };
+      }
+    }
+  }
+  const dx = bestX?.d ?? 0;
+  const dy = bestY?.d ?? 0;
+  const moved = { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h };
+  const guides = [];
+  const reach = 24;
+  if (bestX) {
+    const o = bestX.other;
+    guides.push({ x1: bestX.at, y1: Math.min(moved.y, o.y) - reach, x2: bestX.at, y2: Math.max(moved.y + moved.h, o.y + o.h) + reach });
+  }
+  if (bestY) {
+    const o = bestY.other;
+    guides.push({ x1: Math.min(moved.x, o.x) - reach, y1: bestY.at, x2: Math.max(moved.x + moved.w, o.x + o.w) + reach, y2: bestY.at });
+  }
+  return { dx, dy, guides };
 }
 
 /** Whether point `p` is on or within `pad` pixels of box `b`. */

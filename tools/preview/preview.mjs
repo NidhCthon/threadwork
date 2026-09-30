@@ -21,7 +21,7 @@ app.stage.hitArea = app.screen;
 
 // Big enough for the spike's two cards; scaled down to fit a smaller window,
 // never up, so on a large screen it is 1:1 like the board at default zoom.
-const rect = { x: 0, y: 0, width: 1700, height: 1000 };
+const rect = { x: 0, y: 0, width: 1800, height: 1100 };
 const root = app.stage.addChild(new PIXI.Container());
 const hud = document.getElementById("hud");
 const centre = () => {
