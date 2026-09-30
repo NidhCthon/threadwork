@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; **M1 built, waiting on James's feel check**
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; **M2 in progress**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
