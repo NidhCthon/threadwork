@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 in progress
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; **M0 done**, M1 (feel test) next
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -199,10 +199,14 @@ Deploy to the Lightsail box by hand, following the Poise & Break routine, and in
 
 ## 8. Dev environment
 
-- **Foundry Node.js build 14.368** is unpacked to `K:\foundry-dev\app`, with data in `K:\foundry-dev\data`. It is started with `node main.js --dataPath=K:\foundry-dev\data --hostname=localhost --port=30001`. It stays bound to localhost, which is what the license allows for a dev copy.
+- **Foundry Node.js build 14.368** is unpacked to `K:\foundry-dev\app`, with data in `K:\foundry-dev\data`. It is started with `node main.js --dataPath=K:\foundry-dev\data --port=30001 --noupnp` and needs Node >=24.13.1 <25.
+- **Keeping it private.** Foundry always listens on every network interface and has no bind-address option (`--hostname` only sets invitation links). So the dev copy stays private because **Windows Firewall has no inbound rule for `K:\node.js\node.exe`**. Answer the firewall prompt with Cancel. That keeps it within the license's dev-copy terms, where nobody else can get past the login screen.
+- **Start it with `tools/dev-server.ps1`.** Killing the server leaves `Config/options.json.lock` behind, which blocks the next start. The script clears that lock only when no Foundry is running on the data folder.
 - **James does these steps himself:** download the build (it needs his foundryvtt.com sign-in), then enter the license key and accept the EULA on first launch.
-- **pf2e 8.5.1** is installed from its versioned manifest.
-- **The module** is linked into `data/modules/threadwork` with a directory junction.
+- **pf2e 8.5.1** was unpacked from the same release the server runs (`releases/download/pf2e-8.5.1/system.zip`) into `data/Data/systems/pf2e`. Foundry only scans for packages at startup, so restart it after adding one.
+- **The module** is linked into `data/Data/modules/threadwork` with a directory junction to this repo.
+- **World `threadwork-dev`** (pf2e) has the users Gamemaster, Player One and Player Two, all with no password.
+- **Two users at once.** Tabs on the same host share one session cookie, so sign the GM in at `http://localhost:30001` and a player at `http://127.0.0.1:30001`. The browser treats those as separate sites with separate logins.
 - **Node 24 on Windows cannot spawn `.cmd` shims.** Call tools as libraries or run them with `node` directly.
 
 ## 9. Deploy
