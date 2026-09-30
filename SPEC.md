@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; **M2 built and checked in two local tabs, waiting on James's hands-on 15-second try**
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); **M3 in progress, starting with delete**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
