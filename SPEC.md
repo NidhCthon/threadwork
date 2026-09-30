@@ -275,13 +275,17 @@ Deploy to the Lightsail box by hand, following the Poise & Break routine, and in
 
 ## 9. Deploy
 
-This follows Poise & Break:
-1. `git archive` module.json, LICENSE, README.md, THIRD_PARTY_NOTICES.md, scripts and styles.
+`node tools/deploy.mjs` does this, following Poise & Break and Ultra Silvam:
+1. `git archive` of HEAD's module.json, LICENSE, README.md, THIRD_PARTY_NOTICES.md, scripts and styles. It refuses if those files have uncommitted changes, so what ships is always a commit.
 2. scp the archive to the server.
 3. Stop foundryvtt and move the old folder to `/tmp/threadwork.previous`. Never put a rollback copy inside `Data/modules/`.
-4. Untar into `Data/modules/threadwork`, run `chown --reference`, and start the service.
+4. Untar into `Data/modules/threadwork`, run `chown --reference`, start the service, and show any log errors.
 
-JS/CSS-only updates need only a browser refresh, not a restart. **A manifest change needs a restart, so check who is connected first.** Bump `version` on every release.
+- **Connected players.** It refuses to restart while anyone is connected, unless given `--force`.
+- **First install and manifest changes need a restart**, because Foundry only discovers packages when it starts.
+- **JS/CSS-only updates** use `--no-restart`: the files are served from disk, and players just reload.
+- Bump `version` on every release.
+- **After the first install**, a GM enables Threadwork in the world through Manage Modules. The server auto-launches `exalted-essence`, so the pathfinder world has to be launched from Setup.
 
 ## 10. Later: the mystery board (same module)
 
