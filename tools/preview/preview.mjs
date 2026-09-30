@@ -3,8 +3,8 @@
 // 1:1; the label editor is an input over the canvas, like the HUD in Foundry.
 import { BoardView } from "../../scripts/board-view.js";
 import { prefersReducedMotion } from "../../scripts/motion.js";
-import { spikeBoard } from "../../scripts/spike-data.js";
 import { constellation } from "../../scripts/themes/constellation.js";
+import { demoBoard } from "./demo-board.js";
 
 await document.fonts.load(`${constellation.card.name.fontSize}px Signika`);
 
@@ -65,7 +65,7 @@ const view = new BoardView({
   root,
   theme: constellation,
   rect,
-  ...spikeBoard(rect),
+  ...demoBoard(rect),
   makeText: (text, style) => {
     const t = new PIXI.Text(text, style);
     t.resolution = 2 * window.devicePixelRatio;
@@ -74,8 +74,16 @@ const view = new BoardView({
   // Relative paths are Foundry data paths; the local Foundry serves them from its root.
   loadTexture: (src) => PIXI.Assets.load(/^(\/|https?:)/.test(src) ? src : `/${src}`),
   editText,
+  userColor: 0xffa46b,
   reducedMotion: prefersReducedMotion()
 });
+// No journal here: new strings live only in this page.
+let made = 0;
+view.onConnect = async (from, to) => {
+  const id = `drawn-${++made}`;
+  view.addString({ id, from, to, label: "", arrows: "forward", color: 0xffa46b });
+  return id;
+};
 await view.build();
 app.ticker.add(() => view.update(app.ticker.deltaMS / 1000));
 

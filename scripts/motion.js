@@ -10,6 +10,16 @@ export const CARD_SMOOTH = 0.09;
 /** Seconds for a string's bend to catch up with its cards: the trailing lag. */
 export const CONTROL_SMOOTH = 0.22;
 
+/** Seconds for a card moved by someone else to glide to its new place. */
+export const SETTLE_SMOOTH = 0.25;
+
+/** Seconds for a new card to fade in, and for a new string to draw itself across. */
+export const APPEAR_SECONDS = 0.35;
+export const GROW_SECONDS = 0.45;
+
+/** Ease-out: fast at first, settling at the end. */
+export const easeOut = (t) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
+
 /** Drift: how far a card floats, and how quickly it eases to a stop and back. */
 export const DRIFT = { amplitude: 5, ease: 0.25 };
 

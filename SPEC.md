@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; **M2 in progress**
+**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; **M2 built and checked in two local tabs, waiting on James's hands-on 15-second try**
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -173,6 +173,21 @@ Add the TypeDataModels and bootstrap the journal and scene. Cards come from drop
 - It survives a reload.
 - Board and Back work.
 - A GM activation pulls the player off the board, and their half-typed label is back when they return.
+
+**Result (29 Sep 2026, local world, GM tab plus a Player One tab with default PLAYER permissions):**
+- A player dropping Kyra (their own PC) and Mayor Oskar (an NPC) made two cards. The hook returned `false`, so core made no tokens.
+- A real pointer gesture drew the string: hover, drag from the edge handle, snap to Oskar, release. The label editor opened with the cursor in it.
+- The label reached the GM's client 7 ms after Enter.
+- Everything survived a reload. A dragged card saved its position and the GM's view followed.
+- Board and Back work, and Back hands control back to the token layer.
+- A GM activation pulled the player off the board mid-label, and the half-typed text reopened when they came back.
+
+The one remaining check is James doing it by hand against the 15-second goal.
+
+**How M2 differs from the text above:**
+- Board and Back live in the Threadwork scene-control group. Choosing the group from any other scene takes you to the board.
+- Dropping a document that already has a card moves that card instead of making a second one.
+- Drafts reopen on `canvasReady`, not in `_draw`. The canvas re-renders the HUD after its layers draw, and that replaces the HUD's contents.
 
 ### M3 — Full editing
 Add frames that move with their cards, hub and text cards, the three visibility settings, GM lock, per-user undo and redo, the right-click menu, alignment guides, and missing-document cards.

@@ -17,6 +17,17 @@ export function drawCardPlate(g, w, h, theme, { hover = false } = {}) {
   g.endFill();
 }
 
+/** A connection handle, centred on 0, 0: drag from it to draw a string. */
+export function drawHandle(g, theme, color = theme.string.color) {
+  g.clear();
+  g.lineStyle({ width: 8, color, alpha: 0.25, alignment: 1 });
+  g.drawCircle(0, 0, 9);
+  g.lineStyle({ width: 2, color: 0xffffff, alpha: 0.9, alignment: 0.5 });
+  g.beginFill(color, 1);
+  g.drawCircle(0, 0, 9);
+  g.endFill();
+}
+
 /** The halo ring around a portrait centred at x, y. */
 export function drawPortraitRing(g, x, y, r, theme) {
   const c = theme.card;

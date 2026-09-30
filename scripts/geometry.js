@@ -91,6 +91,23 @@ export function quadLength(curve, segments = 24) {
 
 export const reverseCurve = ({ p0, p1, p2 }) => ({ p0: p2, p1, p2: p0 });
 
+/**
+ * The part of a curve from its start to `t`, as a curve of its own (de
+ * Casteljau). A new string grows by drawing more of itself each frame.
+ */
+export function splitCurve(curve, t) {
+  const { p0, p1 } = curve;
+  return {
+    p0,
+    p1: { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t },
+    p2: quadPoint(curve, t)
+  };
+}
+
+/** Whether point `p` is on or within `pad` pixels of box `b`. */
+export const boxContains = (b, p, pad = 0) =>
+  p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad;
+
 /** The triangle for an arrowhead whose tip sits on the curve's end point. */
 export function arrowHead(curve, size) {
   const tangent = quadTangent(curve, 1);

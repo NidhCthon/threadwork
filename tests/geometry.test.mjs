@@ -79,6 +79,28 @@ test("the arrowhead's tip is the curve's end, and it points along the curve", ()
   close(head.left.y, -head.right.y, "the two barbs are symmetric");
 });
 
+test("a growing string's partial curve starts where the string does and ends on it", () => {
+  const { splitCurve } = threadwork;
+  const curve = stringCurve(box(0, 0), box(800, 300));
+  const half = splitCurve(curve, 0.5);
+  assert.deepEqual(half.p0, curve.p0);
+  const onFull = quadPoint(curve, 0.5);
+  close(half.p2.x, onFull.x, "ends at the full curve's midpoint");
+  const quarterOfFull = quadPoint(curve, 0.25);
+  const halfOfHalf = quadPoint(half, 0.5);
+  close(halfOfHalf.x, quarterOfFull.x, "and follows the same path");
+  close(halfOfHalf.y, quarterOfFull.y, "and follows the same path");
+  assert.deepEqual(splitCurve(curve, 1).p2, quadPoint(curve, 1));
+});
+
+test("a string dropped near a card snaps to it", () => {
+  const { boxContains } = threadwork;
+  const card = box(100, 100);
+  assert.ok(boxContains(card, { x: 150, y: 150 }));
+  assert.ok(boxContains(card, { x: 90, y: 150 }, 14), "a little outside still counts with padding");
+  assert.ok(!boxContains(card, { x: 80, y: 150 }, 14));
+});
+
 test("quadLength of a straight curve is its straight length", () => {
   const curve = { p0: { x: 0, y: 0 }, p1: { x: 150, y: 0 }, p2: { x: 300, y: 0 } };
   close(quadLength(curve), 300, "length");

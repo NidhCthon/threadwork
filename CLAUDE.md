@@ -9,4 +9,6 @@
 - **Line endings.** Blobs are LF (see `.gitattributes`). If `git diff` shows a whole-file rewrite, compare with `--ignore-cr-at-eol` and fix the line endings before committing.
 - **On-board text.** Size it big from the start. On earlier modules James asked for text to be made larger every time.
 - **Secrecy.** Foundry sends every world document to every client, so "hidden" in v1 means not drawn, never secret. Do not claim secrecy anywhere in the UI or docs.
+- **HUD inputs.** The canvas re-renders `#hud` (replacing its contents) after every layer has drawn. Never open an input from `_draw`; open it on `canvasReady` or later. The label editor keeps its text as a draft if anything removes it.
+- **Faking pointer input in tests.** Send `pointerdown` and `pointerup` to `canvas.app.view`, not `window`. PIXI treats a release whose target isn't the canvas as "outside" and generates no tap.
 - **Previews.** A screenshot of a canvas with running PIXI tickers can time out. Freeze the frame first (`canvas.app.ticker.stop()`, then step it) and retry.
