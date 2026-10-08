@@ -72,7 +72,7 @@ STAGE=/tmp/${ID}.staging
 DEST=${MODULES}/${ID}
 PUB=${PUBLISH}/${ID}
 rm -rf "$STAGE" && mkdir -p "$STAGE"
-tar -xzf /tmp/${ID}.tgz -C "$STAGE"
+tar --warning=no-timestamp -xzf /tmp/${ID}.tgz -C "$STAGE"
 
 # Point this copy's updates at the private module server.
 python3 - "$STAGE/${ID}/module.json" "${MODULE_SERVER}/${ID}" "${version}" <<'PY'
