@@ -281,6 +281,7 @@ Deploy to the Lightsail box by hand, following the Poise & Break routine, and in
 3. Stop foundryvtt and move the old folder to `/tmp/threadwork.previous`. Never put a rollback copy inside `Data/modules/`.
 4. Untar into `Data/modules/threadwork`, run `chown --reference`, start the service, and show any log errors.
 
+- **Publishing.** Every deploy also publishes the release to the box's private module server (Caddy on `127.0.0.1:8088`, `/var/www/foundry-modules/threadwork/`) as `module.json` plus `module-<version>.zip`, the same layout as the charms module. The copy that goes there and into `Data/modules` has its manifest and download addresses pointed at that server, so Foundry's own update check sees new releases. The repo's `module.json` keeps its public GitHub addresses. `--publish-only` publishes without installing, for updating from Foundry's Setup screen.
 - **Connected players.** It refuses to restart while anyone is connected, unless given `--force`.
 - **First install and manifest changes need a restart**, because Foundry only discovers packages when it starts.
 - **JS/CSS-only updates** use `--no-restart`: the files are served from disk, and players just reload.
