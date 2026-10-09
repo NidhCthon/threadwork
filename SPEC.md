@@ -238,7 +238,7 @@ Results after the fixes:
 | Foundry, table zoom (0.6) | 10.3 ms | Our update is 0.8 ms of that; the rest is PIXI's render |
 | Foundry, reduced motion | 9.8 ms | |
 
-The slowest 5% of frames reach 16–22 ms in the browser pane. That pane is a hidden window, which throttles and delays GPU work, so those spikes can't be read as stutter. `tools/stress-foundry.js` measures real frame rate in a visible browser for James's hands-on check.
+The slowest 5% of frames reach 16–22 ms in the browser pane. That pane is a hidden window, which throttles and delays GPU work, so those spikes can't be read as stutter. `tools/stress-foundry.js` measures real frame rate in a visible browser for James's hands-on check. Since 0.1.2 it ships with the module, along with `tools/preview/stress-board.js`, so it runs on the live board too: `await (await import("/modules/threadwork/tools/stress-foundry.js")).run()`.
 
 What remains is draw calls. The multi-stroke glows on strings (3.5 ms) and card plates (3.4 ms) are too big for PIXI to batch. If a real board ever needs more, the next step is textured ribbons for strings and nine-slice plates for cards.
 
