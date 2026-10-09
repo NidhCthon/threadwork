@@ -16,6 +16,10 @@ export function demoBoard(rect) {
       doc("valeros", "Valeros", "Fighter, owes a life", "Valeros.webp", cx - 600, cy - 190),
       doc("seelah", "Seelah", "Champion of Iomedae", "Seelah.webp", cx + 220, cy + 60, { locked: true }),
       doc("kyra", "Kyra", "Cleric of Sarenrae", "Kyra.webp", cx - 600, cy + 100, { visibility: "private" }),
+      // Long names and captions: they must wrap or shrink inside the card, never spill out.
+      doc("lysander", "Lysander Drakovescu", "", "Ezren.webp", cx - 120, cy + 400),
+      doc("marieta", "Marieta Cojocaru", "Keeps the ledger at the mill and knows who paid the ferryman twice, and why", "Merisiel.webp", cx - 130, cy + 160),
+      doc("long", "Drakovescu-Vandermeer", "One very long word", "Harsk.webp", cx - 150, cy - 530),
       { id: "oath", kind: "hub", name: "Concept", caption: "The oath at the ford", x: cx + 180, y: cy - 320, w: 440, h: 150, color: 0xffa46b },
       { id: "rumour", kind: "text", name: "Note", caption: "Someone paid the ferryman twice. Ask Oskar who.", x: cx + 260, y: cy + 290, w: 340, h: 96, visibility: "gm" }
     ],

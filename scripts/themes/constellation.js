@@ -42,6 +42,8 @@ export const constellation = {
     portraitBack: 0x050816,
     ring: 0xa9c4ff,
     name: { fontFamily: "Signika", fontSize: 34, fontWeight: "600", fill: 0xf2f5ff },
+    // A name too long for two lines at full size shrinks, but never below this.
+    nameMinSize: 22,
     caption: { fontFamily: "Signika", fontSize: 22, fill: 0xa9b6de }
   },
   string: {

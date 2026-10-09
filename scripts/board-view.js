@@ -12,6 +12,7 @@ import { drawBadge, drawCardPlate, drawHandle, drawPortraitRing } from "./draw/c
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
 import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
+import { fitFontSize, truncateToLines } from "./text-fit.js";
 
 const DOUBLE_TAP_MS = 350;
 const GLOW_TEXTURE_SIZE = 64;
@@ -21,7 +22,7 @@ const SNAP_PAD = 14;
 /** Alignment snapping reach, in screen pixels (so it feels the same at any zoom). */
 const ALIGN_SCREEN_PX = 8;
 /** Smallest card heights, by kind; notes and concepts grow taller to fit their words. */
-const MIN_HEIGHT = { text: 96, hub: 150 };
+const MIN_HEIGHT = { document: 132, text: 96, hub: 150 };
 /**
  * A string is re-drawn only once it has moved this far, in board pixels.
  * Redrawing makes PIXI re-triangulate the curve, which is what costs; drift
@@ -211,8 +212,8 @@ export class BoardView {
     const card = this.cards.get(data.id);
     if (!card) return this.addCard(data);
     const before = card.data;
-    // A note's height is worked out locally from its words, so keep ours.
-    const h = card.data.kind === "document" ? data.h : before.h;
+    // A card's height is worked out locally from its words, so keep ours.
+    const h = before.h;
     card.data = { ...before, ...data, h };
     // Your own drag wins over an echo of an older position.
     if (!card.dragging && !card.carried) card.target = { x: card.data.x, y: card.data.y };
@@ -291,13 +292,41 @@ export class BoardView {
     drawCardPlate(card.plate, card.data.w, card.data.h, this.theme, { hover: card.hover, color: card.data.color, hub: card.data.kind === "hub" });
   }
 
+  /**
+   * Portrait, name and caption. The words are measured first and the card
+   * grows to fit them: a long name wraps onto a second line at full size and
+   * only shrinks if that is not enough, and a caption wraps to two lines and
+   * is cut with an ellipsis after that. Everything is centred vertically, so
+   * a card with no caption does not leave an empty band.
+   */
   #drawDocumentCard(card, texture) {
     const { PIXI, theme } = this;
     const c = theme.card;
     const { data, body } = card;
+    const textX = 14 + c.portrait + 22;
+    const textW = data.w - textX - 16;
+    const fitted = this.#fitName(data.name ?? "", c.name, textW, c.nameMinSize);
+    const name = this.makeText(fitted.text, fitted.style);
+    const words = data.missing ? "(no longer exists)" : this.#truncated(data.caption ?? "", c.caption, textW, 2);
+    const captionStyle = { ...c.caption, wordWrap: true, wordWrapWidth: textW };
+    const caption = words ? this.makeText(words, captionStyle) : null;
+    const gap = 8;
+    const block = name.height + (caption ? gap + caption.height : 0);
+    const h = Math.max(MIN_HEIGHT.document, Math.ceil(block + 36));
+    if (h !== data.h) {
+      data.h = h;
+      this.#layoutCard(card);
+    }
+    const top = Math.round((h - block) / 2);
+    body.addChild(name).position.set(textX, top);
+    if (caption) body.addChild(caption).position.set(textX, top + name.height + gap);
+    // Where the caption editor opens: on the caption, or just under the name.
+    card.captionAt = top + name.height + gap + (caption ? caption.height : c.caption.fontSize) / 2;
+    card.captionText = caption;
+
     const r = c.portrait / 2;
     const px = 14 + r;
-    const py = data.h / 2;
+    const py = h / 2;
     drawPortraitRing(body.addChild(new PIXI.Graphics()), px, py, r, theme);
     const round = texture ? this.#roundPortrait(data.img, texture, r - 2) : null;
     if (round) {
@@ -306,13 +335,33 @@ export class BoardView {
       sprite.position.set(px, py);
       sprite.width = sprite.height = (r - 2) * 2;
     }
-    const textX = 14 + c.portrait + 22;
-    const name = body.addChild(this.makeText(data.name ?? "", c.name));
-    name.position.set(textX, 20);
-    const words = data.missing ? "(no longer exists)" : (data.caption ?? "");
-    const caption = body.addChild(this.makeText(words, c.caption));
-    caption.position.set(textX, 72);
-    card.captionText = caption;
+  }
+
+  /**
+   * A name's text and style at the largest size, down to `min`, at which it
+   * fits `width` in two lines. PIXI only wraps at spaces, so a hyphenated name
+   * that will not fit whole may also break after its hyphens
+   * ("Drakovescu-" / "Vandermeer"), and only if that fails too does a word
+   * break mid-way rather than spill out of the card.
+   */
+  #fitName(text, style, width, min) {
+    const fit = (candidate) => fitFontSize((fontSize) => {
+      const m = this.PIXI.TextMetrics.measureText(candidate, new this.PIXI.TextStyle({ ...style, fontSize, wordWrap: true, wordWrapWidth: width }));
+      return { width: m.width, lines: m.lines.length };
+    }, width, { max: style.fontSize, min, maxLines: 2 });
+    const styled = (size, breakWords) => ({ ...style, fontSize: size, wordWrap: true, wordWrapWidth: width, breakWords });
+    const whole = fit(text);
+    if (whole.fits && whole.size === style.fontSize) return { text, style: styled(whole.size, false) };
+    const hyphenated = text.includes("-") ? text.replace(/-(?=\S)/g, "-\n") : null;
+    const split = hyphenated ? fit(hyphenated) : null;
+    if (split?.fits && (!whole.fits || split.size > whole.size)) return { text: hyphenated, style: styled(split.size, false) };
+    return { text, style: styled(whole.size, !whole.fits) };
+  }
+
+  /** `text`, cut at a word with an ellipsis if it would wrap to more than `maxLines` lines at `width`. */
+  #truncated(text, style, width, maxLines) {
+    const wrapped = new this.PIXI.TextStyle({ ...style, wordWrap: true, wordWrapWidth: width });
+    return truncateToLines((candidate) => this.PIXI.TextMetrics.measureText(candidate, wrapped).lines.length, text, maxLines);
   }
 
   /**
@@ -460,7 +509,7 @@ export class BoardView {
       kind: "card",
       x: box.x + box.w / 2,
       // A document card's caption row; a note or concept is edited over its whole face.
-      y: document ? box.y + 72 + this.theme.card.caption.fontSize / 2 : box.y + box.h / 2,
+      y: document ? box.y + (card.captionAt ?? box.h / 2) : box.y + box.h / 2,
       width: box.w - 24,
       value: initial ?? card.data.caption ?? "",
       multiline: !document,
