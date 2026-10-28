@@ -8,7 +8,7 @@ import { isBoardScene } from "./board-scene.js";
 import { closeMenu, showMenu } from "./context-menu.js";
 import {
   CARD_SIZE, canModify, cardViewData, frameCreateData, frameViewData, isBoardJournal, noteCreateData,
-  pageType, stringCreateData, stringViewData, visibleTo
+  pageType, shadowCardData, shadowStringData, shadowedFor, stringCreateData, stringViewData, visibleTo
 } from "./data.js";
 import { goBack, goToBoard } from "./navigation.js";
 import { reduceMotion } from "./settings.js";
@@ -55,8 +55,16 @@ const colorOfUser = (userId) => {
 
 const resolve = (uuid) => (uuid ? fromUuidSync(uuid, { strict: false }) ?? null : null);
 
-export const cardFromPage = (page) => cardViewData(page, resolve(page.system.uuid));
-export const stringFromPage = (page) => stringViewData(page, colorOfUser(page.system.author));
+// Shadowing happens here, between the page and the renderer: what a shadowed
+// card or string says is dropped before the board view ever sees it (SPEC.md 10).
+export const cardFromPage = (page, isGM = game.user?.isGM) => {
+  const data = cardViewData(page, resolve(page.system.uuid));
+  return shadowedFor(data, isGM) ? shadowCardData(data) : data;
+};
+export const stringFromPage = (page, isGM = game.user?.isGM) => {
+  const data = stringViewData(page, colorOfUser(page.system.author));
+  return shadowedFor(data, isGM) ? shadowStringData(data) : data;
+};
 
 /**
  * The pages this user should see, split by type. A string is only drawn when
@@ -334,6 +342,16 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     return this.updatePages([{ _id: id, system }]);
   }
 
+  /** GM only: show an item as a "???" stub rather than as itself (SPEC.md 10). */
+  setState(id, state) {
+    return this.updatePages([{ _id: id, system: { state } }]);
+  }
+
+  /** How sure the table is of a string. Strings are neutral, so anyone who can change it can say. */
+  setCertainty(id, certainty) {
+    return this.updatePages([{ _id: id, system: { certainty } }]);
+  }
+
   async undo() {
     const journal = boardJournal();
     const op = journal && history.takeUndo();
@@ -397,8 +415,13 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
   /*  Right-click menus                           */
   /* -------------------------------------------- */
 
-  /** The menu entries every item shares: colour, who sees it, and the GM's lock. */
-  #commonItems(page, { colorLabel }) {
+  /**
+   * The menu entries every item shares: colour, who sees it, and the GM's
+   * lock. `states` adds the GM's shadow toggle, which belongs beside the
+   * visibility entries because the two together are the GM's three choices —
+   * shown, shadowed, hidden — even though they are separate fields (SPEC.md 10).
+   */
+  #commonItems(page, { colorLabel, states = false }) {
     const s = page.system;
     const items = [];
     const pick = (visibility) => () => this.setVisibility(page.id, visibility);
@@ -410,6 +433,15 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       { label: game.user.isGM ? "GM only" : "GM only (hides it from you)", icon: "fa-solid fa-user-shield", current: s.visibility === "gm", action: pick("gm") },
       { label: "Only me and the GM", icon: "fa-solid fa-user-lock", current: s.visibility === "private" && s.author === game.user.id, action: pick("private") }
     );
+    if (states && game.user.isGM) {
+      const shadowed = s.state === "shadowed";
+      items.push({
+        label: shadowed ? "Show it as itself" : "Shadow it (the table sees ???)",
+        icon: shadowed ? "fa-solid fa-eye" : "fa-solid fa-circle-question",
+        current: shadowed,
+        action: () => this.setState(page.id, shadowed ? "revealed" : "shadowed")
+      });
+    }
     if (game.user.isGM) {
       items.push("-", s.locked
         ? { label: "Unlock", icon: "fa-solid fa-lock-open", action: () => this.setLocked(page.id, false) }
@@ -448,7 +480,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
         action: () => this.updatePages([{ _id: id, system: { kind: other, w: CARD_SIZE[other].w } }])
       });
     }
-    items.push("-", ...this.#commonItems(page, { colorLabel: "Default colour" }), "-");
+    items.push("-", ...this.#commonItems(page, { colorLabel: "Default colour", states: true }), "-");
     // "Remove from board", not "delete": the actor, item or journal itself is not touched.
     items.push({ label: s.kind === "document" ? "Remove from board" : "Delete", icon: "fa-solid fa-xmark", danger: true, action: () => this.removeCard(id) });
     showMenu(at, items, { title: card?.name || (s.kind === "hub" ? "Concept" : "Note") });
@@ -461,6 +493,11 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     const title = `${name(s.from)} → ${name(s.to)}`;
     if (!editable) return showMenu(at, [{ label: LOCKED_NOTE, icon: "fa-solid fa-lock", action: () => {} }], { title });
     const arrows = (value) => () => this.updatePages([{ _id: id, system: { arrows: value } }]);
+    // How sure the table is. A string arrives confirmed, so a board that never
+    // plays with mysteries never sees these do anything; a player marks their
+    // own hunch rumored, and the GM confirming it is what makes it canon.
+    const certainty = s.certainty ?? "confirmed";
+    const sure = (value) => () => this.setCertainty(id, value);
     showMenu(at, [
       { label: "One way", icon: "fa-solid fa-arrow-right-long", current: s.arrows === "forward", action: arrows("forward") },
       { label: "Both ways", icon: "fa-solid fa-arrows-left-right", current: s.arrows === "both", action: arrows("both") },
@@ -468,7 +505,11 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       { label: "Reverse direction", icon: "fa-solid fa-right-left", action: () => this.updatePages([{ _id: id, system: { from: s.to, to: s.from } }]) },
       { label: "Edit label", icon: "fa-solid fa-pen", action: () => this.view?.editString(id) },
       "-",
-      ...this.#commonItems(page, { colorLabel: "Its author's colour" }),
+      { label: "Just a rumour", icon: "fa-solid fa-comment-dots", current: certainty === "rumored", action: sure("rumored") },
+      { label: "Suspected", icon: "fa-solid fa-magnifying-glass", current: certainty === "suspected", action: sure("suspected") },
+      { label: game.user.isGM && certainty !== "confirmed" ? "Confirm it" : "Confirmed", icon: "fa-solid fa-check", current: certainty === "confirmed", action: sure("confirmed") },
+      "-",
+      ...this.#commonItems(page, { colorLabel: "Its author's colour", states: true }),
       "-",
       { label: "Delete string", icon: "fa-solid fa-trash", danger: true, action: () => this.removePage(id) }
     ], { title });

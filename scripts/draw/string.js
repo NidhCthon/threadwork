@@ -8,23 +8,84 @@ function stroke(g, curve, width, color, alpha) {
   g.quadraticCurveTo(curve.p1.x, curve.p1.y, curve.p2.x, curve.p2.y);
 }
 
-function fillArrow(g, head, color) {
+function fillArrow(g, head, color, alpha = 1) {
   g.lineStyle(0);
-  g.beginFill(color, 1);
+  g.beginFill(color, alpha);
   g.drawPolygon([head.tip.x, head.tip.y, head.left.x, head.left.y, head.right.x, head.right.y]);
   g.endFill();
 }
 
-/** The string itself: a wide faint glow, a softer halo, then the bright core, and its arrowheads. */
-export function drawString(g, curve, theme, { color, arrows = "forward" } = {}) {
-  const s = theme.string;
-  g.clear();
-  stroke(g, curve, s.glowWidth, color, s.glowAlpha);
-  stroke(g, curve, s.midWidth, color, s.midAlpha);
-  stroke(g, curve, s.width, color, 0.95);
-  if (arrows === "forward" || arrows === "both") fillArrow(g, arrowHead(curve, s.arrow), color);
-  if (arrows === "both") fillArrow(g, arrowHead(reverseCurve(curve), s.arrow), color);
+const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+/**
+ * A curve cut into dashes: an array of flat [x, y, x, y, …] polylines, one per
+ * dash. The curve is walked in short steps and each step is kept or dropped by
+ * where its middle falls in the dash-and-gap pattern, so dashes hold their
+ * length however hard the curve bends. `stepPx` is the walk's resolution: a
+ * dash boundary lands within one step of where it belongs.
+ */
+export function dashedSegments(curve, dash, gap, stepPx = 4) {
+  const period = dash + gap;
+  if (!(dash > 0) || !(period > 0)) return [];
+  const { p0, p1, p2 } = curve;
+  // The control polygon is never shorter than the curve, so this never under-samples.
+  const steps = Math.max(8, Math.ceil((distance(p0, p1) + distance(p1, p2)) / stepPx));
+  const runs = [];
+  let run = null;
+  let travelled = 0;
+  let previous = { x: p0.x, y: p0.y };
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    const point = {
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y
+    };
+    const length = distance(previous, point);
+    if ((travelled + length / 2) % period < dash) {
+      if (!run) runs.push(run = [previous.x, previous.y]);
+      run.push(point.x, point.y);
+    } else run = null;
+    travelled += length;
+    previous = point;
+  }
+  return runs;
 }
+
+function strokeRuns(g, runs, width, color, alpha) {
+  g.lineStyle({ width, color, alpha, cap: "round", join: "round" });
+  for (const run of runs) {
+    g.moveTo(run[0], run[1]);
+    for (let i = 2; i < run.length; i += 2) g.lineTo(run[i], run[i + 1]);
+  }
+}
+
+/**
+ * The string itself: a wide faint glow, a softer halo, then the bright core,
+ * and its arrowheads. `certainty` (SPEC.md 10) picks the look from the theme —
+ * a confirmed string is drawn whole and bright, a suspected one dimmer, and a
+ * rumored one dashed. A dashed string drops the wide outer glow, which at that
+ * width would smear the dashes back into a solid line.
+ */
+export function drawString(g, curve, theme, { color, arrows = "forward", certainty = "confirmed" } = {}) {
+  const s = theme.string;
+  const look = s.certainty?.[certainty] ?? s.certainty?.confirmed ?? { alpha: 1, dash: 0, gap: 0 };
+  g.clear();
+  if (look.dash > 0) {
+    const runs = dashedSegments(curve, look.dash, look.gap);
+    strokeRuns(g, runs, s.midWidth, color, s.midAlpha * look.alpha);
+    strokeRuns(g, runs, s.width, color, 0.95 * look.alpha);
+  } else {
+    stroke(g, curve, s.glowWidth, color, s.glowAlpha * look.alpha);
+    stroke(g, curve, s.midWidth, color, s.midAlpha * look.alpha);
+    stroke(g, curve, s.width, color, 0.95 * look.alpha);
+  }
+  if (arrows === "forward" || arrows === "both") fillArrow(g, arrowHead(curve, s.arrow), color, look.alpha);
+  if (arrows === "both") fillArrow(g, arrowHead(reverseCurve(curve), s.arrow), color, look.alpha);
+}
+
+/** Light only runs along a string the table has settled on. */
+export const flowsFor = (theme, certainty = "confirmed") => theme.string.certainty?.[certainty]?.flow !== false;
 
 /** Fade light in and out near the ends so it never pops on or off at a card's edge. */
 const endFade = (t) => Math.max(0, Math.min(1, t / 0.08, (1 - t) / 0.08));

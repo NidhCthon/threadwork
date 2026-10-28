@@ -296,16 +296,25 @@ TheRipper93's paid Simple Quest shipped an Investigation Board (§11) that does 
 
 ### M6 — States (the cheap tier)
 
-Cards and strings carry `state`: `revealed`, `shadowed` or `hidden`. Hidden is the M3 visibility path, already built. **Shadowed** is the new one: the card draws as its plate and silhouette with a `???` title, no portrait and no caption, and a shadowed string draws dim and unlabeled. This is the state that makes a mystery board work — it tells players something is there without telling them what — and no competitor has it.
+Cards and strings carry `state`: `revealed` or `shadowed`. Hidden is not a third value — it is `visibility: "gm"`, built in M3 — so the GM's three choices compose from two orthogonal fields and nothing means the same thing twice. **Shadowed** is the new one: the card draws as its plate with a `???` title, no portrait and no caption, and a shadowed string draws dim, dashed and unlabeled. This is the state that makes a mystery board work — it tells players something is there without telling them what — and no competitor has it.
 
 Strings also carry `certainty`: `rumored`, `suspected` or `confirmed`, drawn as stroke variants (dashed, solid dim, solid with flow). Nearly free once the string renderer takes a style.
 
-A player-drawn string defaults to `rumored`. The GM confirms it from the right-click menu, which promotes a theory to canon. This reuses M3's menu and the player authorship v1 already allows, and it is the one feature that makes the planning board and the mystery board the same object instead of two.
+The GM confirms a string from the right-click menu, which promotes a theory to canon. This reuses M3's menu and the player authorship v1 already allows, and it is the one feature that makes the planning board and the mystery board the same object instead of two.
 
 **Accept:**
 - A shadowed card shows `???` to a player and its real title to the GM.
-- A player draws a string, it reads as rumored, and the GM's confirm changes it for everyone.
+- A player marks a string rumored, and the GM's confirm changes it for everyone.
 - Reduced motion still suppresses ambient motion on all three certainties.
+
+**Result (28 Oct 2026, 0.2.0, `node --test`: 100 pass, 0 fail).** Built as above, with one deviation and one addition:
+
+- **A new string is `confirmed`, not `rumored`.** The spec had player-drawn strings start as rumours. That would have turned every string already on the live pathfinder board dashed the moment the module updated, and most strings on a planning board state a fact ("is the mayor's niece") rather than a theory. `confirmed` as the initial value also means the hundreds of pages already saved, which carry no `certainty` at all, read correctly with no migration. A player who wants to float a theory marks it rumoured, and the GM's confirm still does the promoting.
+- **Shadowing happens between the page and the renderer** (`shadowCardData`, `shadowStringData` in `data.js`, applied in `layer.js`), not inside the board view. The name, caption, portrait and label are dropped on the way out, so no draw path can leak them by accident and `board-view.js` still knows nothing about states. A shadowed string is also handed `certainty: "rumored"`, because the GM's own certainty would otherwise tell the table how sure the GM is of something they cannot read.
+- A shadowed card or string **cannot be edited** by the people it is shadowed from, or committing the `???` stub would write it over the real words.
+- Dashes are `dashedSegments()` in `draw/string.js`: the curve is walked in ~4 px steps and each step kept or dropped by where its middle falls in the dash pattern, so dashes hold their length however hard the curve bows. A dashed string drops the wide outer glow, which at that width smears the dashes back into a solid line.
+
+**Still James's, hands-on:** shadow a card and a string as GM and check both from a player tab (`???`, no portrait, no label, no badges, and the player cannot edit either), and confirm a player's rumoured string and watch it change on their screen.
 
 ### M7 — Reveal beats (hold until wanted)
 

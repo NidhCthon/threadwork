@@ -9,6 +9,22 @@ export const ARROWS = ["none", "forward", "both"];
 export const CARD_KINDS = ["document", "text", "hub"];
 
 /**
+ * Mystery mechanics (SPEC.md 10). `state` is how much of an item is shown to
+ * the people who can see it at all, and it stays separate from `visibility`,
+ * which is whether they see it at all: hidden is `visibility: "gm"`, built in
+ * M3. The GM's three choices — shown, shadowed, hidden — compose from those
+ * two orthogonal fields, so nothing means the same thing twice.
+ *
+ * `certainty` starts at `confirmed` so that every string already on a live
+ * board keeps the look it has today, and a theory is something you mark.
+ */
+export const STATES = ["revealed", "shadowed"];
+export const CERTAINTY = ["rumored", "suspected", "confirmed"];
+
+/** What a shadowed card shows in place of its name. */
+export const SHADOW_TEXT = "???";
+
+/**
  * Card sizes by kind. Document cards fit a portrait, a name and a caption at
  * table-readable sizes; notes and concepts grow taller to fit their text.
  */
@@ -41,6 +57,7 @@ export class CardData extends foundry.abstract.TypeDataModel {
     return {
       ...commonFields(),
       kind: new f.StringField({ required: true, choices: CARD_KINDS, initial: "document" }),
+      state: new f.StringField({ required: true, choices: STATES, initial: "revealed" }),
       uuid: new f.StringField({ required: false, nullable: true, blank: false, initial: null }),
       x: new f.NumberField({ required: true, nullable: false, initial: 0 }),
       y: new f.NumberField({ required: true, nullable: false, initial: 0 }),
@@ -63,6 +80,8 @@ export class StringData extends foundry.abstract.TypeDataModel {
       to: new f.StringField({ required: true, blank: false }),
       label: new f.StringField({ required: true, blank: true, initial: "" }),
       arrows: new f.StringField({ required: true, choices: ARROWS, initial: "forward" }),
+      state: new f.StringField({ required: true, choices: STATES, initial: "revealed" }),
+      certainty: new f.StringField({ required: true, choices: CERTAINTY, initial: "confirmed" }),
       color: new f.ColorField({ required: false, nullable: true, initial: null })
     };
   }
@@ -164,6 +183,7 @@ export function cardViewData(page, doc) {
     missing,
     color: s.color == null ? null : Number(s.color),
     visibility: s.visibility,
+    state: s.state ?? "revealed",
     author: s.author,
     locked: s.locked
   };
@@ -180,6 +200,8 @@ export function stringViewData(page, authorColor = null) {
     label: s.label,
     arrows: s.arrows,
     color: own ?? (authorColor == null ? null : Number(authorColor)),
+    state: s.state ?? "revealed",
+    certainty: s.certainty ?? "confirmed",
     visibility: s.visibility,
     author: s.author,
     locked: s.locked
@@ -215,6 +237,37 @@ export function visibleTo(system, user) {
   if (system.visibility === "gm") return false;
   if (system.visibility === "private") return system.author === user?.id;
   return true;
+}
+
+/**
+ * Whether an item should be drawn as a shadow rather than as itself. The GM
+ * always sees the real thing, with a badge saying the table does not.
+ *
+ * Like `visibleTo`, this decides what is drawn, not what is secret: a shadowed
+ * card's page still reaches every client, so the words behind it are readable
+ * by anyone who looks. Keep anything that must not be read out of the world
+ * until the moment it is revealed (SPEC.md 10).
+ */
+export const shadowedFor = (data, isGM) => data?.state === "shadowed" && !isGM;
+
+/**
+ * What a shadowed card shows: its plate and its place, and nothing else. The
+ * name, caption and portrait are dropped here, on the way from the page to the
+ * renderer, rather than hidden inside it — so no draw path can leak them by
+ * accident, and the board view needs to know nothing about states.
+ */
+export function shadowCardData(data) {
+  return { ...data, name: SHADOW_TEXT, caption: "", img: null, missing: false, shadowed: true };
+}
+
+/**
+ * The same for a string: it still runs between its cards, but says nothing.
+ * It is drawn as a rumour, because that is what it is to whoever is looking —
+ * a connection of unknown kind — and because leaving the GM's own certainty on
+ * it would tell the table how sure the GM is of a thing they cannot even read.
+ */
+export function shadowStringData(data) {
+  return { ...data, label: "", certainty: "rumored", shadowed: true };
 }
 
 /**

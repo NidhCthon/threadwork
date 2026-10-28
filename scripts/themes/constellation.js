@@ -55,8 +55,18 @@ export const constellation = {
     glowAlpha: 0.12,
     pad: 10,
     arrow: 20,
-    flow: { color: 0xffffff, alpha: 0.9, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 }
+    flow: { color: 0xffffff, alpha: 0.9, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 },
+    // How sure the table is of a connection (SPEC.md 10). Confirmed is exactly
+    // the string v1 drew, so a board that never touches this looks unchanged.
+    // Light runs only along confirmed strings: a rumour does not carry power.
+    certainty: {
+      rumored: { alpha: 0.6, dash: 17, gap: 13, flow: false },
+      suspected: { alpha: 0.82, dash: 0, gap: 0, flow: false },
+      confirmed: { alpha: 1, dash: 0, gap: 0, flow: true }
+    }
   },
+  // A card or string the GM has shadowed: present, placed, and saying nothing.
+  shadow: { alpha: 0.72 },
   // The HTML parts: the text editor and the right-click menu. Applied to the
   // page as CSS custom properties (see scripts/theme-css.js), so the stylesheet
   // itself carries no colours of its own.
@@ -104,7 +114,10 @@ export const constellation = {
     text: { fontFamily: "Signika", fontSize: 15, fontWeight: "700", fill: 0x0a0f26, letterSpacing: 1 },
     gm: 0xffd36b,
     private: 0xb48cff,
-    locked: 0xa9b6de
+    locked: 0xa9b6de,
+    shadowed: 0x7fe0c0,
+    rumored: 0x8aa0d6,
+    suspected: 0xc7b07f
   },
   guide: { color: 0xffe06b, alpha: 0.85, width: 1.5 },
   label: {

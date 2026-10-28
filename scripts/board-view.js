@@ -10,7 +10,7 @@ import {
 } from "./motion.js";
 import { drawBadge, drawCardPlate, drawHandle, drawPortraitRing } from "./draw/card.js";
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
-import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots } from "./draw/string.js";
+import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots, flowsFor } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
 import { fitFontSize, truncateToLines } from "./text-fit.js";
 
@@ -67,8 +67,8 @@ export class BoardView {
    * @param {PIXI.Container} options.root       Container the board draws into, in board coordinates
    * @param {object} options.theme
    * @param {{x, y, width, height}} options.rect  Area the sky covers
-   * @param {object[]} [options.cards]          {id, kind, name, caption, img, x, y, w, h, missing, color, visibility, locked}
-   * @param {object[]} [options.strings]        {id, from, to, label, arrows, color, visibility, locked}
+   * @param {object[]} [options.cards]          {id, kind, name, caption, img, x, y, w, h, missing, color, visibility, state, shadowed, locked}
+   * @param {object[]} [options.strings]        {id, from, to, label, arrows, color, visibility, state, certainty, shadowed, locked}
    * @param {object[]} [options.frames]         {id, x, y, w, h, title, color, visibility, locked}
    * @param {(text: string, style: object) => PIXI.Text} options.makeText
    * @param {(src: string) => Promise<PIXI.Texture>} options.loadTexture
@@ -217,7 +217,7 @@ export class BoardView {
     card.data = { ...before, ...data, h };
     // Your own drag wins over an echo of an older position.
     if (!card.dragging && !card.carried) card.target = { x: card.data.x, y: card.data.y };
-    const looks = ["kind", "name", "img", "caption", "missing", "w", "color", "visibility", "locked"].some((k) => before[k] !== card.data[k]);
+    const looks = ["kind", "name", "img", "caption", "missing", "w", "color", "visibility", "locked", "state", "shadowed"].some((k) => before[k] !== card.data[k]);
     if (looks) {
       this.#layoutCard(card);
       await this.#drawCardBody(card);
@@ -284,7 +284,8 @@ export class BoardView {
     else this.#drawWordsCard(card);
     this.#drawPlate(card);
     this.#drawBadges(card.body, card.data, card.data.w);
-    card.body.alpha = card.data.missing ? 0.5 : 1;
+    if (card.data.missing) card.body.alpha = 0.5;
+    else card.body.alpha = card.data.shadowed ? this.theme.shadow.alpha : 1;
   }
 
   #drawPlate(card) {
@@ -398,8 +399,12 @@ export class BoardView {
     const hub = card.data.kind === "hub";
     const style = hub ? theme.hub : theme.note;
     const { w } = card.data;
-    const empty = !card.data.caption;
-    const text = this.makeText(empty ? (hub ? "A shared idea" : "Double-click to write") : card.data.caption, {
+    // A shadowed note is not an empty one: it says "???" rather than inviting
+    // the reader to write in it. Its words carry the stub already.
+    const shadowed = !!card.data.shadowed;
+    const empty = !shadowed && !card.data.caption;
+    const words = shadowed ? card.data.name : (empty ? (hub ? "A shared idea" : "Double-click to write") : card.data.caption);
+    const text = this.makeText(words, {
       ...style.text,
       wordWrapWidth: w - style.padX * 2,
       fill: empty ? theme.note.placeholder : style.text.fill
@@ -424,6 +429,15 @@ export class BoardView {
     if (data.locked) words.push(["LOCKED", b.locked]);
     if (data.visibility === "gm") words.push(["GM ONLY", b.gm]);
     if (data.visibility === "private") words.push(["PRIVATE", b.private]);
+    // Only for whoever still sees the real thing. The table's own copy says
+    // "???" already, so a badge on top would be a second sign of the same
+    // thing — and a certainty badge there would say how sure the GM is of
+    // something they cannot read at all.
+    if (!data.shadowed) {
+      if (data.state === "shadowed") words.push(["SHADOWED", b.shadowed]);
+      if (data.certainty === "rumored") words.push(["RUMORED", b.rumored]);
+      if (data.certainty === "suspected") words.push(["SUSPECTED", b.suspected]);
+    }
     let right = width - 14;
     for (const [word, color] of words) {
       const text = this.makeText(word, b.text);
@@ -497,7 +511,9 @@ export class BoardView {
   }
 
   async #editCard(card, initial) {
-    if (card.editing || !this.editText || !this.canModify(card.data) || card.data.missing) return;
+    // A shadowed card is not editable by the people it is shadowed from: they
+    // hold "???", and committing it would write the stub over the real words.
+    if (card.editing || !this.editText || !this.canModify(card.data) || card.data.missing || card.data.shadowed) return;
     card.editing = true;
     card.holds += 1;
     const document = card.data.kind === "document";
@@ -906,7 +922,8 @@ export class BoardView {
     this.#drawBadges(string.badges, string.data, w);
     string.badges.position.set(-w / 2, -h / 2);
     // Anything not public is drawn a little fainter, so it reads as set apart.
-    string.baseAlpha = string.data.visibility && string.data.visibility !== "everyone" ? 0.6 : 1;
+    const apart = string.data.visibility && string.data.visibility !== "everyone" ? 0.6 : 1;
+    string.baseAlpha = apart * (string.data.shadowed ? this.theme.shadow.alpha : 1);
   }
 
   #wireLabel(string) {
@@ -931,7 +948,7 @@ export class BoardView {
   }
 
   async #editLabel(string, initial) {
-    if (string.editing || !this.editText || !this.canModify(string.data)) return;
+    if (string.editing || !this.editText || !this.canModify(string.data) || string.data.shadowed) return;
     string.editing = true;
     this.#hold(string, 1);
     string.label.visible = false;
@@ -1083,7 +1100,7 @@ export class BoardView {
     }
     item.grow -= dt / LEAVE_SECONDS;
     const shown = easeOut(Math.max(0, item.grow));
-    drawString(item.line, splitCurve(item.lastCurve, Math.max(0.001, shown)), this.theme, { color: this.#colorOf(item), arrows: item.data.arrows });
+    drawString(item.line, splitCurve(item.lastCurve, Math.max(0.001, shown)), this.theme, { color: this.#colorOf(item), arrows: item.data.arrows, certainty: item.data.certainty ?? "confirmed" });
     item.flow.visible = false;
     item.label.alpha = shown;
     if (item.grow <= 0) {
@@ -1114,13 +1131,14 @@ export class BoardView {
     const grown = easeOut(string.grow);
     const curve = grown < 1 ? splitCurve(full, grown) : full;
     const color = this.#colorOf(string);
-    const key = `${color}|${string.data.arrows}`;
+    const certainty = string.data.certainty ?? "confirmed";
+    const key = `${color}|${string.data.arrows}|${certainty}`;
     if (grown < 1 || key !== string.drawnKey || !curvesClose(curve, string.drawn, REDRAW_EPSILON)) {
-      drawString(string.line, curve, this.theme, { color, arrows: string.data.arrows });
+      drawString(string.line, curve, this.theme, { color, arrows: string.data.arrows, certainty });
       string.drawn = grown < 1 ? null : curve;
       string.drawnKey = grown < 1 ? null : key;
     }
-    string.flow.visible = !reduced && grown >= 1;
+    string.flow.visible = !reduced && grown >= 1 && flowsFor(this.theme, certainty);
     if (string.flow.visible) {
       const length = quadLength(curve);
       string.phase = advanceFlow(string.phase, dt, this.theme.string.flow.speed, length);
