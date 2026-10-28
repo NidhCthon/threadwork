@@ -18,7 +18,7 @@ Players forget who is who, and they plan their characters' ties in their heads o
 
 Threadwork is a **players' planning board**: character relationships, party planning, and storyboarding. It is drawn on its own scene, anyone can edit it, and it moves like it is alive. Feel is the product.
 
-A GM **mystery board** (staged reveals, real secrecy) is a later board kind in the same module (§10). It is not v1.
+**Mystery mechanics** — a shadowed "???" state, string certainty, staged reveals — come later on this same board, not as a second board kind (§10). They are not v1.
 
 ## 2. Fixed inputs (decided — do not relitigate)
 
@@ -52,7 +52,7 @@ A GM **mystery board** (staged reveals, real secrecy) is a later board kind in t
 ## 4. Non-goals for v1
 
 - The cork theme (it comes next; the theme layer must make it a drop-in).
-- The mystery board: reveal states, prepared reveal beats, the encrypted vault, per-player knowledge (§10).
+- Mystery mechanics: the shadowed state, string certainty, prepared reveal beats (§10). The encrypted vault and per-player knowledge are cut outright.
 - Personal or multiple boards.
 - Templates (bonds, goals, fears).
 - Automatic layout ("tidy up") and routing lines around cards.
@@ -288,14 +288,38 @@ Deploy to the Lightsail box by hand, following the Poise & Break routine, and in
 - Bump `version` on every release.
 - **After the first install**, a GM enables Threadwork in the world through Manage Modules. The server auto-launches `exalted-essence`, so the pathfinder world has to be launched from Setup.
 
-## 10. Later: the mystery board (same module)
+## 10. Later: mystery mechanics on the one board (rescoped 28 Oct 2026)
 
-This is a second board kind that shares the renderer, data model and themes. It is already designed:
+**The rescope.** §10 used to describe a second board kind. That was the wrong shape. The expensive half of a mystery board is the canvas, the cards and the string geometry, and Threadwork already has all of it, tuned, deployed and in use. What is actually missing is a few states and a way to turn them on in front of people. So there is no second board: cards and strings gain states, and the GM gains a reveal queue, on the board that already exists.
 
-- **States:** hidden, shadowed ("???" stub) and revealed, on both cards and strings. Strings also carry certainty: rumored, suspected or confirmed.
-- **Prepared reveal beats:** the GM queues them during prep. Firing one broadcasts a staged reveal: the string draws itself in, the camera pans, and a sound plays.
-- **Real secrecy:** Foundry sends every document, pack index, user setting and `Data/` file to every client. So secrets live in an **encrypted vault** in world data, sealed with a GM passphrase (Web Crypto AES-GCM, key derived with PBKDF2), plus a "download readable backup" button. A beat is decrypted and written into the board only at the moment of reveal.
-- **Per-player knowledge**, and GM confirmation that turns a player's theory into canon.
+TheRipper93's paid Simple Quest shipped an Investigation Board (§11) that does the canvas-and-connections half. It is not a substitute here, because that half is already built — but it does mean a plain GM clue board is now something to buy rather than build, and nothing below should be justified on the grounds that no such board exists.
+
+### M6 — States (the cheap tier)
+
+Cards and strings carry `state`: `revealed`, `shadowed` or `hidden`. Hidden is the M3 visibility path, already built. **Shadowed** is the new one: the card draws as its plate and silhouette with a `???` title, no portrait and no caption, and a shadowed string draws dim and unlabeled. This is the state that makes a mystery board work — it tells players something is there without telling them what — and no competitor has it.
+
+Strings also carry `certainty`: `rumored`, `suspected` or `confirmed`, drawn as stroke variants (dashed, solid dim, solid with flow). Nearly free once the string renderer takes a style.
+
+A player-drawn string defaults to `rumored`. The GM confirms it from the right-click menu, which promotes a theory to canon. This reuses M3's menu and the player authorship v1 already allows, and it is the one feature that makes the planning board and the mystery board the same object instead of two.
+
+**Accept:**
+- A shadowed card shows `???` to a player and its real title to the GM.
+- A player draws a string, it reads as rumored, and the GM's confirm changes it for everyone.
+- Reduced motion still suppresses ambient motion on all three certainties.
+
+### M7 — Reveal beats (hold until wanted)
+
+An ordered queue of beats on the board journal. A beat names the items and strings it moves to a new state, and optionally a camera target and a sound. Firing one broadcasts over socket: the string draws itself in with the existing geometry, the camera pans with core `canvas.animatePan`, the sound plays. A small GM panel adds, reorders, fires and undoes beats.
+
+**Accept:** the GM fires a beat and every connected player sees the same animation within a second; undoing it returns every item to its prior state.
+
+**Do not start M7 until a real session has wanted a staged reveal and could not have one.** It is GM theatre that James prepares in advance, and v1's success test is unprompted *player* use. M6 serves the table; M7 serves the GM.
+
+### Cut
+
+- **The encrypted vault is cut.** Crypto in world data buys a passphrase that can be lost, a backup button that must be remembered, and bugs that eat campaign prep. Cheaper and nearly as effective: keep unrevealed prose out of the world entirely. A beat stores an id and the item ids it changes, and the secret text stays in James's own GM notes, landing in the world only when the beat fires. What still reaches the client is that a shadowed card *exists* and where it sits. That is unavoidable on a Scene and it matches the standing decision — trust the table: hidden means not drawn, not secret ([[foundry-v14-no-client-secrecy]]).
+- **Per-player knowledge is cut.** It multiplies state by the number of players, touches every render path, and leaves the GM maintaining it by hand mid-session. Revisit only if a game genuinely needs it.
+- **The separate board kind is cut**, as above.
 
 Other items after v1: the cork theme, personal boards, templates, a tidy-up layout, and obstacle routing.
 
@@ -310,6 +334,7 @@ Other items after v1: the cork theme, personal boards, templates, a tidy-up layo
 | Investigation Board (sargas79) | MIT | AppV2 window, JournalEntryPage sub-types. Its secrecy claim is contradicted by core source. |
 | Foundry Graph | AGPL-3.0 | D3 window with a WoD template. Ideas only. |
 | Stylish Relationship Tracker | Paid | The only animated one. Cut-ins, built around one character. |
+| Simple Quest (TheRipper93) | Paid, closed | Added 28 Oct 2026. Its **Investigation Board** (5.2.1) is the closest thing to §10: infinite-canvas window, `SQ Investigation` journal page, configurable items with presets, Ctrl-drag connections with lockable handles, Alt+click hide/reveal, connections hidden with their endpoints, saved viewport, stamps. Missing: the shadowed state, string certainty, prepared reveal beats, per-player knowledge, real secrecy, and motion. GM-authored and windowed, not a Scene. |
 | Simple MindMap, ClueBook | No license | Do not copy. |
 | Target Tree | Closed source | — |
 
