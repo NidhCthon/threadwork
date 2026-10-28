@@ -25,11 +25,12 @@ const PUBLISH = "/var/www/foundry-modules";
 const MODULE_SERVER = "http://127.0.0.1:8088";
 const SERVICE = "foundryvtt";
 const ID = "threadwork";
-// The stress check ships too, so it can be run from the console on the live
-// board (see tools/stress-foundry.js); it imports the stress board generator.
+// The two console tools ship as well, so they can be run on the live board:
+// the stress check (tools/stress-foundry.js, which imports the board
+// generator) and the worked example of M6 (tools/example-board.js).
 const SHIPPED = [
   "module.json", "LICENSE", "README.md", "THIRD_PARTY_NOTICES.md", "scripts", "styles",
-  "tools/stress-foundry.js", "tools/preview/stress-board.js"
+  "tools/stress-foundry.js", "tools/preview/stress-board.js", "tools/example-board.js"
 ];
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
