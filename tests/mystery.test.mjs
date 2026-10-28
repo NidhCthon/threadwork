@@ -141,3 +141,44 @@ test("every certainty has a look, and confirmed is the undashed one v1 drew", ()
   assert.equal(theme.string.certainty.confirmed.dash, 0);
   assert.ok(theme.string.certainty.rumored.dash > 0);
 });
+
+/* -------------------------------------------- */
+/*  The worked example                          */
+/*  (tools/example-board.js, set up by hand)    */
+/* -------------------------------------------- */
+
+const example = await import("../tools/example-board.js");
+
+test("every string in the example joins two cards that exist", () => {
+  for (const s of example.STRINGS) {
+    assert.ok(example.CARDS[s.from], `${s.from} is not a card`);
+    assert.ok(example.CARDS[s.to], `${s.to} is not a card`);
+  }
+});
+
+test("the example shows all three certainties and both states", () => {
+  const certainties = new Set(example.STRINGS.map((s) => s.certainty ?? "confirmed"));
+  assert.deepEqual([...certainties].sort(), ["confirmed", "rumored", "suspected"]);
+  assert.ok(Object.values(example.CARDS).some((c) => c.state === "shadowed"), "no shadowed card");
+  assert.ok(example.STRINGS.some((s) => s.state === "shadowed"), "no shadowed string");
+});
+
+test("a shadowed card is on the far end of a string from a revealed one, so the table sees the line", () => {
+  for (const [key, card] of Object.entries(example.CARDS)) {
+    if (card.state !== "shadowed") continue;
+    const reaching = example.STRINGS.filter((s) => s.from === key || s.to === key);
+    assert.ok(reaching.length > 0, `nothing leads to ${key}, so the table would never know it is there`);
+  }
+});
+
+test("every card sits inside the example's frame", () => {
+  const { x, y, w, h } = example.FRAME;
+  for (const [key, card] of Object.entries(example.CARDS)) {
+    const size = threadwork.CARD_SIZE[card.kind];
+    // Cards grow downward to fit their words, so allow room under the stated height.
+    assert.ok(card.x - size.w / 2 >= x, `${key} hangs off the left`);
+    assert.ok(card.x + size.w / 2 <= x + w, `${key} hangs off the right`);
+    assert.ok(card.y - size.h / 2 >= y, `${key} hangs off the top`);
+    assert.ok(card.y + size.h / 2 + 80 <= y + h, `${key} is too near the bottom once its words wrap`);
+  }
+});
