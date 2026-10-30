@@ -8,9 +8,8 @@ import { ensureBoardScene, isBoardScene } from "./board-scene.js";
 import { DATA_MODELS, ensureBoardJournal, isBoardJournal } from "./data.js";
 import { onDropCanvasData } from "./drops.js";
 import { ThreadworkLayer } from "./layer.js";
-import { registerSettings } from "./settings.js";
+import { currentTheme, registerSettings } from "./settings.js";
 import { applyThemeCss } from "./theme-css.js";
-import { constellation } from "./themes/constellation.js";
 
 export * from "./constants.js";
 export * from "./geometry.js";
@@ -23,6 +22,7 @@ export * from "./actor-drag.js";
 export * from "./undo.js";
 export * from "./settings.js";
 export * from "./theme-css.js";
+export * from "./themes/index.js";
 export { ThreadworkLayer };
 
 Hooks.once("init", () => {
@@ -31,7 +31,7 @@ Hooks.once("init", () => {
   }
   CONFIG.Canvas.layers[MODULE_ID] = { layerClass: ThreadworkLayer, group: "interface" };
   registerSettings();
-  applyThemeCss(constellation);
+  applyThemeCss(currentTheme());
   // Core has Ctrl+Z (it reaches the layer's _onUndoKey) but no redo.
   game.keybindings.register(MODULE_ID, "redo", {
     name: "Redo on the Party Board",
@@ -50,7 +50,7 @@ Hooks.once("init", () => {
 Hooks.once("setup", () => allowActorDragOnBoard(CONFIG.ui.actors));
 
 Hooks.once("ready", async () => {
-  const scene = await ensureBoardScene(constellation);
+  const scene = await ensureBoardScene(currentTheme());
   await ensureBoardJournal(scene);
 });
 

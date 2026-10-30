@@ -4,21 +4,25 @@
 import { BoardView } from "../../scripts/board-view.js";
 import { prefersReducedMotion } from "../../scripts/motion.js";
 import { applyThemeCss } from "../../scripts/theme-css.js";
-import { constellation } from "../../scripts/themes/constellation.js";
+import { themeOf } from "../../scripts/themes/index.js";
 import { demoBoard } from "./demo-board.js";
 import { stressBoard } from "./stress-board.js";
 
+const params = new URL(location.href).searchParams;
 // ?stress (or ?stress=60,100) builds a crowded board for the M4 performance check.
-const stress = new URL(location.href).searchParams.get("stress");
+const stress = params.get("stress");
 const [stressCards, stressStrings] = (stress || "60,100").split(",").map(Number);
+// ?theme=cork previews a theme other than the default.
+const theme = themeOf(params.get("theme"));
 
-await document.fonts.load(`${constellation.card.name.fontSize}px Signika`);
-applyThemeCss(constellation);
+await document.fonts.load(`${theme.card.name.fontSize}px Signika`);
+applyThemeCss(theme);
+document.body.style.background = `#${theme.background.toString(16).padStart(6, "0")}`;
 
 const app = new PIXI.Application({
   resizeTo: window,
   antialias: true,
-  backgroundColor: constellation.background,
+  backgroundColor: theme.background,
   resolution: window.devicePixelRatio,
   autoDensity: true
 });
@@ -74,7 +78,7 @@ function editText({ x, y, value, color, fontSize, width = null, multiline = fals
 const view = new BoardView({
   PIXI,
   root,
-  theme: constellation,
+  theme,
   rect,
   ...(stress === null ? demoBoard(rect) : stressBoard(rect, stressCards, stressStrings)),
   makeText: (text, style) => {

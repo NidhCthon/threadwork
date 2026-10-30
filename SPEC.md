@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** v0.1 · 29 Sep 2026 · designed through a grilling session; M0 done; M1 passed its feel check; M2 passed (James added cards, strings and labels by hand and saw them on both GM and player); M3 built (two GM-only checks by James still open: lock, deleted-actor card); M4 built (James's stutter check open); **M5: 0.1.0 deployed to pugfoundry.com 2026-10-01, waiting on James to enable it in the pathfinder world and run the ten-minute check**
+**Status:** **0.3.0 · 30 Oct 2026 · v1 complete and every hands-on check passed.** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -35,7 +35,7 @@ Threadwork is a **players' planning board**: character relationships, party plan
 | Strings | A **free-text label** and **arrows** (none, one way, or both). No relationship-type palette. |
 | Frames | In v1: titled boxes that group cards and move with them. |
 | Interaction | **Modeless.** The board layer is always active on the board scene, so there is no tool picking. |
-| Look | **Constellation** is the default theme. Cork comes after v1. Themes are a swappable layer. |
+| Look | **Constellation** is the default theme; **cork** is the second, done 30 Oct 2026. Themes are a swappable layer, chosen by a world setting. |
 | Motion | **Always alive**: stars twinkle, light flows along every string, cards drift gently. |
 | Storage | A hidden **"Party Board" JournalEntry**; every card, string and frame is its own page sub-type. |
 | Navigation | A Board button (remembers where you were) and a Back button, plus a scene-bar tab. When the GM activates a scene, everyone is pulled back to it, and that is a feature. |
@@ -51,7 +51,7 @@ Threadwork is a **players' planning board**: character relationships, party plan
 
 ## 4. Non-goals for v1
 
-- The cork theme (it comes next; the theme layer must make it a drop-in).
+- ~~The cork theme~~ (done 30 Oct 2026; see §12).
 - Mystery mechanics: the shadowed state, string certainty, prepared reveal beats (§10). The encrypted vault and per-player knowledge are cut outright.
 - Personal or multiple boards.
 - Templates (bonds, goals, fears).
@@ -208,7 +208,7 @@ Add frames that move with their cards, hub and text cards, the three visibility 
 - **Captions.** Double-clicking a document card edits its caption.
 - **Players see no Lock item.**
 
-Two checks need a GM and are James's: a lock stops Player One from moving or deleting, and deleting an Actor greys out its card.
+**Both GM-only checks passed on 30 Oct 2026** (James, by hand): a lock stops a player moving or deleting, and deleting an Actor leaves its card greyed out and marked missing.
 
 **How M3 differs from the text above:**
 - New notes and frames can also be made from the Threadwork toolbar, in the middle of the view.
@@ -314,7 +314,7 @@ The GM confirms a string from the right-click menu, which promotes a theory to c
 - A shadowed card or string **cannot be edited** by the people it is shadowed from, or committing the `???` stub would write it over the real words.
 - Dashes are `dashedSegments()` in `draw/string.js`: the curve is walked in ~4 px steps and each step kept or dropped by where its middle falls in the dash pattern, so dashes hold their length however hard the curve bows. A dashed string drops the wide outer glow, which at that width smears the dashes back into a solid line.
 
-**Still James's, hands-on:** shadow a card and a string as GM and check both from a player tab (`???`, no portrait, no label, no badges, and the player cannot edit either), and confirm a player's rumoured string and watch it change on their screen.
+**Checked by hand and passed on 30 Oct 2026** (James, two tabs): shadowing seen from the player side, and a confirm landing on their screen. A worked example ships as `tools/example-board.js` and has been run on the live Exalted Essence world.
 
 ### M7 — Reveal beats (hold until wanted)
 
@@ -330,7 +330,7 @@ An ordered queue of beats on the board journal. A beat names the items and strin
 - **Per-player knowledge is cut.** It multiplies state by the number of players, touches every render path, and leaves the GM maintaining it by hand mid-session. Revisit only if a game genuinely needs it.
 - **The separate board kind is cut**, as above.
 
-Other items after v1: the cork theme, personal boards, templates, a tidy-up layout, and obstacle routing.
+Other items after v1: personal boards, templates, a tidy-up layout, and obstacle routing. The cork theme is done (§12).
 
 ## 11. Research record (29 Sep 2026)
 
@@ -369,3 +369,20 @@ Other items after v1: the cork theme, personal boards, templates, a tidy-up layo
 - **Always-on motion on weak laptops.** Measure it at M4. Reduced motion is the fallback.
 - **The pathfinder world's history of loading problems.** Part 1 runs with the Bastion module off. The board scene is light, but recheck after Bastion or pf2e updates.
 - **The board journal in the sidebar.** It is hidden cosmetically. Trusting the table covers anyone who opens it anyway.
+
+## 12. Cork, the second theme (30 Oct 2026)
+
+Done in 0.3.0. A world setting, **Party Board look**, picks between Constellation and Cork; it is world-scoped rather than per player, because the board is one shared board and its scene background is shared data.
+
+How it went together, against §5.6's claim that a second theme is "one more file":
+
+- **The colours really were a drop-in.** `scripts/themes/cork.js` is `constellation.js` key for key, and a test now compares every key path of every theme so a third one cannot quietly miss a key or add a stray one.
+- **So was the backdrop**, which was the part expected to need new drawing code. `starfieldData()` turns out to be "soft blobs plus small dots from a seed", which is exactly cork's mottling and grain. Cork keeps the `nebula` and `stars` key names for them, since those are the generator's vocabulary, and says so in a comment.
+- **The grain's density deliberately matches constellation's star density.** Each fleck is one static sprite, and constellation's count is the sky budget M4 profiled. A finer, better-looking grain cost 55% more sprites, which is the wrong trade on a board that already shows a slight stutter on this laptop. A test now fails any theme that generates more sky sprites than the default.
+- **Three places had the theme hard-imported** (the view and the colour swatches in `layer.js`; the CSS properties and the board scene in `threadwork.js`). They now all read `currentTheme()`. `scripts/themes/index.js` is the registry.
+- **Switching theme repaints the scene**, and that is what redraws the canvas. `paintBackground()` now returns whether it changed anything; only the GM repaints, and every player's canvas is redrawn by the level update arriving, so no second message is needed. If a future theme shares the default's background colour, the GM falls back to an explicit `canvas.draw()`.
+- **One trap worth remembering:** a theme's display name cannot be called `label`, because `label` is already the string-tag config. It is `title`, and a test holds that line.
+
+Cork's own choices: cream index cards with near-square corners and a drop shadow where constellation glows, red twine, dark ink, a light menu surface rather than a dark one, and a frame border and title light enough to read against brown. The travelling light stays, because it is how a confirmed string reads at a glance, but as a warm sheen rather than starlight.
+
+The preview harness takes `?theme=cork` (`node tools/preview/serve.mjs`, then `http://localhost:30010/tools/preview/?theme=cork`).

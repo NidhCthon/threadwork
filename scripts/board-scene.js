@@ -46,7 +46,9 @@ export async function ensureBoardScene(theme) {
  */
 export async function paintBackground(scene, theme) {
   const level = scene?.levels?.contents[0];
-  if (level && level.background?.color?.css !== hex(theme.background)) {
-    await level.update({ "background.color": hex(theme.background) });
-  }
+  if (!level || level.background?.color?.css === hex(theme.background)) return false;
+  await level.update({ "background.color": hex(theme.background) });
+  // Updating a level redraws every client's canvas, which is how a theme
+  // change reaches the players without a second message.
+  return true;
 }

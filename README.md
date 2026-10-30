@@ -6,6 +6,8 @@ Players drag characters, items and journals onto the board, draw labeled strings
 
 The GM can also **shadow** a card or a string, so the table sees that something is there — a `???` plate, a dashed line to nowhere — without seeing what. Strings say how sure the table is: a player marks a hunch as a rumour, and the GM confirming it is what makes it canon. Shadowing decides what is drawn, not what is secret; Foundry sends every page to every client, so anything that must not be read belongs outside the world until it is revealed.
 
+Two looks, chosen for the whole world in the module settings: **Constellation**, a night sky where light runs along the strings, and **Cork**, a detective's board of brown cork, cream index cards and red twine.
+
 **Status:** in use, and still being built. See [SPEC.md](SPEC.md) for the plan and its milestones.
 
 Works with any game system. It is being built in a Pathfinder Second Edition world first.

@@ -11,8 +11,7 @@ import {
   pageType, shadowCardData, shadowStringData, shadowedFor, stringCreateData, stringViewData, visibleTo
 } from "./data.js";
 import { goBack, goToBoard } from "./navigation.js";
-import { reduceMotion } from "./settings.js";
-import { constellation } from "./themes/constellation.js";
+import { currentTheme, reduceMotion } from "./settings.js";
 import { UndoStack, beforeOf, cascadeFor } from "./undo.js";
 
 const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
@@ -131,7 +130,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     const view = new BoardView({
       PIXI,
       root: this,
-      theme: constellation,
+      theme: currentTheme(),
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       cards: cards.map(cardFromPage),
       strings: strings.map(stringFromPage),
@@ -427,7 +426,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     const pick = (visibility) => () => this.setVisibility(page.id, visibility);
     const current = s.color == null ? null : Number(s.color);
     items.push(
-      { swatches: constellation.palette, current, resetLabel: colorLabel, action: (color) => this.updatePages([{ _id: page.id, system: { color: color === null ? null : hex(color) } }]) },
+      { swatches: currentTheme().palette, current, resetLabel: colorLabel, action: (color) => this.updatePages([{ _id: page.id, system: { color: color === null ? null : hex(color) } }]) },
       "-",
       { label: "Everyone sees it", icon: "fa-solid fa-eye", current: s.visibility === "everyone", action: pick("everyone") },
       { label: game.user.isGM ? "GM only" : "GM only (hides it from you)", icon: "fa-solid fa-user-shield", current: s.visibility === "gm", action: pick("gm") },

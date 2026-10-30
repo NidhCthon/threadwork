@@ -4,6 +4,9 @@
 
 export const constellation = {
   id: "constellation",
+  // What the theme is called in the settings menu. Not `label`: that key is
+  // the string-tag config further down.
+  title: "Constellation",
   background: 0x060818,
   // Many medium clouds rather than a few huge ones, so every view of a big
   // board has colour in it, not one faint smudge.
