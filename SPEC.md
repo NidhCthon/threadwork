@@ -386,3 +386,21 @@ How it went together, against §5.6's claim that a second theme is "one more fil
 Cork's own choices: cream index cards with near-square corners and a drop shadow where constellation glows, red twine, dark ink, a light menu surface rather than a dark one, and a frame border and title light enough to read against brown. The travelling light stays, because it is how a confirmed string reads at a glance, but as a warm sheen rather than starlight.
 
 The preview harness takes `?theme=cork` (`node tools/preview/serve.mjs`, then `http://localhost:30010/tools/preview/?theme=cork`).
+
+### Cork rebuilt (31 Oct 2026, 0.4.0)
+
+The first cork (0.3.0) was wrong, and James said so on sight: a flat brown field, violet dashed strings and no pins. Every fault came from one mistake — **cork was built as a recolour of constellation, and it is not a recolour, it is a different physical metaphor.** Constellation is light: things glow, emit and travel. Cork is material: things are cut, dyed, and pinned to a surface. A theme that only changes colours keeps the first theme's *behaviour*, which is what he was looking at.
+
+So §5.6's "a second theme is one more file" is **false** for a theme whose metaphor differs. Colours are one more file; behaviour is not. Three behaviours had to become theme choices:
+
+- **`string.authorColours`.** Strings default to their author's colour so a board reads as who drew what. That is a property of light, and it made the twine violet. Cork sets it false: twine is the colour twine is.
+- **`string.fibre`.** A string was a glow, a halo and a bright core. Cork draws a dark edge, the cord, then a sheen down the middle, which is what makes it read as round and solid. Nothing travels along it — every certainty sets `flow: false`, because a glowing rope is the sky theme's idea.
+- **`pin`.** Constellation has nothing that translates into one, so it sets `pin: null` and cork draws a head, shaft, shine and shadow at the top of every card.
+
+The backdrop was rebuilt too. Grain as individual sprites was both invisible (0.5–1.7 px at the sky's density) and the reason the budget was tight. Cork now uses **one seamless 512 px tile repeated across the board** (`scripts/draw/cork-surface.js`): a single draw call whatever the board's size, painted at full resolution so the speckle and pits actually read at table zoom. `nebula` and `stars` are `null` for cork; `surface` is `null` for constellation.
+
+**`null` now means "this theme does not use this feature"**, and the shape test honours it in both directions: a key path is exempt when walking it hits a null in either theme. That keeps the contract strict while letting themes opt out of whole features.
+
+Paper does not glow, so cork's glow alphas are low enough to read as a drop shadow under the card rather than a halo around it. A card given a colour gets a soft edge, not a light source.
+
+Still open, if it ever matters: twine attaches to card edges while pins sit at card tops, so a cord does not run pin to pin.

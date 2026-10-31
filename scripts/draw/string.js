@@ -70,15 +70,28 @@ function strokeRuns(g, runs, width, color, alpha) {
 export function drawString(g, curve, theme, { color, arrows = "forward", certainty = "confirmed" } = {}) {
   const s = theme.string;
   const look = s.certainty?.[certainty] ?? s.certainty?.confirmed ?? { alpha: 1, dash: 0, gap: 0 };
+  const runs = look.dash > 0 ? dashedSegments(curve, look.dash, look.gap) : null;
+  // One stroke, however this theme draws its strings: whole or in dashes.
+  const lay = (width, strokeColor, alpha) => {
+    if (runs) strokeRuns(g, runs, width, strokeColor, alpha);
+    else stroke(g, curve, width, strokeColor, alpha);
+  };
   g.clear();
-  if (look.dash > 0) {
-    const runs = dashedSegments(curve, look.dash, look.gap);
-    strokeRuns(g, runs, s.midWidth, color, s.midAlpha * look.alpha);
-    strokeRuns(g, runs, s.width, color, 0.95 * look.alpha);
+  if (s.fibre) {
+    // Twine: a dark edge the whole way round, the cord itself, then a lighter
+    // sheen down the middle, which is what makes it read as round and solid
+    // rather than as a drawn line.
+    const f = s.fibre;
+    lay(f.edgeWidth, f.edge, f.edgeAlpha * look.alpha);
+    lay(s.width, color, look.alpha);
+    lay(f.sheenWidth, f.sheen, f.sheenAlpha * look.alpha);
   } else {
-    stroke(g, curve, s.glowWidth, color, s.glowAlpha * look.alpha);
-    stroke(g, curve, s.midWidth, color, s.midAlpha * look.alpha);
-    stroke(g, curve, s.width, color, 0.95 * look.alpha);
+    // Light: a wide faint glow, a softer halo, then the bright core. A dashed
+    // string drops the glow, which at that width smears the dashes back into
+    // a solid line.
+    if (!runs) lay(s.glowWidth, color, s.glowAlpha * look.alpha);
+    lay(s.midWidth, color, s.midAlpha * look.alpha);
+    lay(s.width, color, 0.95 * look.alpha);
   }
   if (arrows === "forward" || arrows === "both") fillArrow(g, arrowHead(curve, s.arrow), color, look.alpha);
   if (arrows === "both") fillArrow(g, arrowHead(reverseCurve(curve), s.arrow), color, look.alpha);

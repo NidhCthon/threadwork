@@ -13,34 +13,41 @@ export const cork = {
   // Not `label`: that key is the string-tag config further down.
   title: "Cork",
   background: 0x6b4a2c,
-  // Broad patches of lighter and darker cork, so a big board is never a flat
-  // brown field. Baked into the backdrop texture, like constellation's clouds.
-  nebula: {
-    density: 1 / 1500000,
-    minCount: 4,
-    minRadius: 420,
-    maxRadius: 1100,
-    colors: [
-      { color: 0x8a6440, alpha: 0.22 },
-      { color: 0x5a3d22, alpha: 0.18 },
-      { color: 0x9c7550, alpha: 0.14 },
-      { color: 0x4d3419, alpha: 0.12 }
-    ]
-  },
-  // Cork grain: smaller than stars and dark rather than bright, with
-  // twinkleShare 0 so none of it moves — the board's life comes from the cards
-  // drifting and the light on the twine, not from the surface.
-  //
-  // The density deliberately matches constellation's. Grain is one static
-  // sprite each, and that is the sky budget M4 profiled; a finer grain looked
-  // better and cost 55% more sprites, which is the wrong trade on a board that
-  // already stutters slightly on this laptop.
-  stars: {
-    density: 1 / 14000,
-    colors: [0x4a3219, 0x3d2912, 0x5c4026, 0x2f2010],
-    minRadius: 0.5,
-    maxRadius: 1.7,
-    twinkleShare: 0
+  // Cork is a surface, not a sky: one seamless tile repeated across the board
+  // (scripts/draw/cork-surface.js). `nebula` and `stars` are the sky generator's
+  // keys and cork has no use for either, so they are null.
+  nebula: null,
+  stars: null,
+  surface: {
+    tile: 512,
+    // The speckle. Small stretched flecks, light and dark, thick enough to
+    // read as a material at table zoom rather than as noise.
+    fleck: {
+      count: 1500,
+      minRadius: 1.2,
+      maxRadius: 6.5,
+      minStretch: 0.35,
+      maxStretch: 1.0,
+      colors: [
+        { color: 0x8f6a44, alpha: 0.55 },
+        { color: 0xa98259, alpha: 0.45 },
+        { color: 0x4f3519, alpha: 0.45 },
+        { color: 0x3c2711, alpha: 0.38 },
+        { color: 0xbb9a72, alpha: 0.3 }
+      ]
+    },
+    // The deeper holes, fewer and darker, that stop it reading as fabric.
+    pit: {
+      count: 110,
+      minRadius: 5,
+      maxRadius: 15,
+      minStretch: 0.45,
+      maxStretch: 1.0,
+      colors: [
+        { color: 0x33210d, alpha: 0.5 },
+        { color: 0x241704, alpha: 0.42 }
+      ]
+    }
   },
   // Index cards: cream paper, square-ish corners, a soft drop shadow where
   // constellation has a glow.
@@ -52,8 +59,10 @@ export const cork = {
     borderAlpha: 0.9,
     borderWidth: 2,
     glow: 0x2a1b0c,
-    glowAlpha: 0.18,
-    hoverGlowAlpha: 0.32,
+    // Paper does not glow. These are a drop shadow under the card, so they
+    // stay low: a card given a colour gets a soft edge, not a halo.
+    glowAlpha: 0.1,
+    hoverGlowAlpha: 0.2,
     hoverBorder: 0xb4342a,
     handleRing: 0xfff8e8,
     portrait: 104,
@@ -63,25 +72,47 @@ export const cork = {
     nameMinSize: 22,
     caption: { fontFamily: "Signika", fontSize: 22, fill: 0x6b5a45 }
   },
-  // Red twine. The travelling light stays, because it is how a confirmed
-  // string reads at a glance, but it is a warm sheen rather than starlight.
+  // Twine, not light. The colour is the material's, never the author's, and
+  // nothing travels along it: a glowing rope is the sky theme's idea. The
+  // three certainties separate by how solid the cord looks instead.
   string: {
-    color: 0xb4342a,
-    width: 3,
+    color: 0xa8392b,
+    authorColours: false,
+    width: 7,
     midWidth: 7,
     midAlpha: 0.2,
-    glowWidth: 12,
-    glowAlpha: 0.08,
+    glowWidth: 0,
+    glowAlpha: 0,
     pad: 10,
-    arrow: 20,
-    flow: { color: 0xffe8b8, alpha: 0.45, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 },
+    arrow: 22,
+    fibre: {
+      edge: 0x47180f,
+      edgeWidth: 10,
+      edgeAlpha: 0.85,
+      sheen: 0xe8a07f,
+      sheenWidth: 2.4,
+      sheenAlpha: 0.5
+    },
+    flow: { color: 0xffe8b8, alpha: 0, pulses: 1, speed: 170, trail: 1, spacing: 7, radius: 1 },
     certainty: {
-      rumored: { alpha: 0.6, dash: 17, gap: 13, flow: false },
-      suspected: { alpha: 0.82, dash: 0, gap: 0, flow: false },
-      confirmed: { alpha: 1, dash: 0, gap: 0, flow: true }
+      rumored: { alpha: 0.75, dash: 15, gap: 12, flow: false },
+      suspected: { alpha: 0.88, dash: 0, gap: 0, flow: false },
+      confirmed: { alpha: 1, dash: 0, gap: 0, flow: false }
     }
   },
   shadow: { alpha: 0.72 },
+  // A pin through the top of every card.
+  pin: {
+    show: true,
+    radius: 11,
+    shaft: 3,
+    head: 0xc23a2b,
+    shine: 0xffd9cf,
+    shineAlpha: 0.75,
+    steel: 0x9aa3ad,
+    shadow: 0x2a1b0c,
+    shadowAlpha: 0.38
+  },
   // Light surface, dark ink: the inverse of constellation, which the
   // stylesheet handles because it reads every colour from these properties.
   ui: {
@@ -96,8 +127,8 @@ export const cork = {
   palette: [0xb4342a, 0x1f6f5c, 0x2b4a8a, 0x8a5a1f, 0x6b3a7a, 0x3d6b1f, 0x2b2118, 0xf2e8d5],
   hub: {
     borderWidth: 3,
-    glowAlpha: 0.26,
-    hoverGlowAlpha: 0.42,
+    glowAlpha: 0.12,
+    hoverGlowAlpha: 0.22,
     padX: 26,
     padY: 24,
     text: { fontFamily: "Signika", fontSize: 40, fontWeight: "600", fill: 0x2b2118, align: "center", wordWrap: true, lineHeight: 48 }

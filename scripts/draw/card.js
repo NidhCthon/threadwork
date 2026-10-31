@@ -43,6 +43,31 @@ export function drawHandle(g, theme, color = theme.string.color) {
   g.endFill();
 }
 
+/**
+ * A pin pushed through the top of a card, centred on 0, 0: a shadow cast down
+ * the card, the steel shaft, then the domed head with a highlight on it. Only
+ * themes whose cards are physical objects draw one (`theme.pin.show`).
+ */
+export function drawPin(g, theme) {
+  const p = theme.pin;
+  g.clear();
+  // The shadow falls below and right of the head, so the light reads as coming
+  // from the top left — the same direction the card plates already assume.
+  g.beginFill(p.shadow, p.shadowAlpha);
+  g.drawEllipse(p.radius * 0.5, p.radius * 0.9, p.radius * 0.9, p.radius * 0.5);
+  g.endFill();
+  g.lineStyle({ width: p.shaft, color: p.steel, alpha: 1, cap: "round" });
+  g.moveTo(0, 0);
+  g.lineTo(p.radius * 0.18, p.radius * 1.15);
+  g.lineStyle(0);
+  g.beginFill(p.head, 1);
+  g.drawCircle(0, 0, p.radius);
+  g.endFill();
+  g.beginFill(p.shine, p.shineAlpha);
+  g.drawCircle(-p.radius * 0.3, -p.radius * 0.32, p.radius * 0.38);
+  g.endFill();
+}
+
 /** The halo ring around a portrait centred at x, y. */
 export function drawPortraitRing(g, x, y, r, theme) {
   const c = theme.card;

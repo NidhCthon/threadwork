@@ -46,12 +46,27 @@ test("the board can wear more than one theme, and the default is constellation",
 });
 
 test("every theme has exactly the same shape, so the board can read any of them", () => {
+  // A theme opts out of a whole feature by setting its key to null — cork has
+  // no sky, constellation has no pins — so a path is exempt when walking it
+  // hits a null in EITHER theme: one of them has said it does not use this.
+  const optsOut = (theme, path) => {
+    const parts = path.split(".");
+    for (let i = 1; i <= parts.length; i++) {
+      let node = theme;
+      for (const part of parts.slice(0, i)) node = node?.[part];
+      if (node === null) return true;
+    }
+    return false;
+  };
   const [first, ...rest] = Object.values(THEMES);
-  const expected = keyPaths(first).sort();
+  const expected = keyPaths(first);
   for (const theme of rest) {
-    const actual = keyPaths(theme).sort();
-    assert.deepEqual(actual.filter((k) => !expected.includes(k)), [], `${theme.id} has keys constellation does not`);
-    assert.deepEqual(expected.filter((k) => !actual.includes(k)), [], `${theme.id} is missing keys constellation has`);
+    const actual = keyPaths(theme);
+    const exempt = (path) => optsOut(theme, path) || optsOut(first, path);
+    assert.deepEqual(expected.filter((k) => !actual.includes(k) && !exempt(k)), [],
+      `${theme.id} is missing keys the default has, without opting out with null`);
+    assert.deepEqual(actual.filter((k) => !expected.includes(k) && !exempt(k)), [],
+      `${theme.id} has keys the default neither has nor opts out of with null`);
   }
 });
 
@@ -101,24 +116,57 @@ test("each theme's interface colours all reach the stylesheet", () => {
 });
 
 test("no theme asks the sky for more sprites than the profiled baseline", async () => {
-  // M4 measured constellation on a 60-card, 100-string board. Every fleck or
-  // star is one sprite, so a theme that generates more than the default has
-  // not been profiled and must not be assumed to run at the same rate.
+  // M4 measured constellation on a 60-card, 100-string board. Every star is
+  // one sprite, so a sky-based theme that generates more than the default has
+  // not been profiled and must not be assumed to run at the same rate. A
+  // theme with a surface instead draws one tiling sprite, whatever its size.
   const { starfieldData } = await import("../scripts/draw/starfield.js");
   const rect = { x: 0, y: 0, width: 8000, height: 6000 };
   const baseline = starfieldData(rect, THEMES[DEFAULT_THEME]).stars.length;
   for (const theme of Object.values(THEMES)) {
+    if (!theme.stars) {
+      assert.ok(theme.surface, `${theme.id} has neither a sky nor a surface to draw`);
+      continue;
+    }
     const { stars } = starfieldData(rect, theme);
     assert.ok(stars.length <= baseline, `${theme.id} generates ${stars.length} sky sprites against a baseline of ${baseline}`);
   }
 });
 
-test("cork's surface does not move, so its life comes from the cards and twine", () => {
-  const { starfieldData, starAlpha } = threadwork;
-  const { stars } = starfieldData({ x: 0, y: 0, width: 4000, height: 3000 }, THEMES.cork);
-  assert.ok(stars.length > 0, "cork has grain");
-  assert.equal(stars.filter((s) => s.twinkle).length, 0, "no grain twinkles");
-  for (const fleck of stars.slice(0, 20)) {
-    assert.equal(starAlpha(fleck, 0), starAlpha(fleck, 7.5), "a fleck's brightness never changes");
+test("cork is a surface, not a sky", async () => {
+  const { corkGrains } = await import("../scripts/draw/cork-surface.js");
+  const cork = THEMES.cork;
+  assert.equal(cork.stars, null, "no stars");
+  assert.equal(cork.nebula, null, "no clouds");
+  assert.ok(cork.surface.tile > 0, "it has a tile to repeat");
+
+  const grains = corkGrains(cork.surface.tile, cork.surface);
+  assert.equal(grains.length, cork.surface.fleck.count + cork.surface.pit.count);
+  for (const g of grains) {
+    assert.ok(g.x >= 0 && g.x <= cork.surface.tile, "a grain sits on the tile");
+    assert.ok(g.y >= 0 && g.y <= cork.surface.tile);
+    assert.ok(g.rx > 0 && g.ry > 0, "and has a size");
   }
+  // Pits are the deeper holes: fewer, and bigger than the speckle around them.
+  const pits = grains.filter((g) => g.kind === "pit");
+  assert.equal(pits.length, cork.surface.pit.count);
+  assert.ok(Math.min(...pits.map((g) => g.rx)) >= cork.surface.pit.minRadius);
+});
+
+test("the cork surface is the same every time, so the board does not reshuffle", async () => {
+  const { corkGrains } = await import("../scripts/draw/cork-surface.js");
+  const { surface } = THEMES.cork;
+  assert.deepEqual(corkGrains(surface.tile, surface), corkGrains(surface.tile, surface));
+});
+
+test("twine takes the material's colour, never the author's; starlight takes the author's", () => {
+  assert.equal(THEMES.cork.string.authorColours, false);
+  assert.equal(THEMES.constellation.string.authorColours, true);
+});
+
+test("nothing travels along twine, and cork's cards are pinned down", () => {
+  for (const look of Object.values(THEMES.cork.string.certainty)) assert.equal(look.flow, false);
+  assert.ok(THEMES.cork.string.fibre, "twine is drawn as a cord, not a glow");
+  assert.equal(THEMES.cork.pin.show, true);
+  assert.equal(THEMES.constellation.pin, null, "stars are not pinned to anything");
 });

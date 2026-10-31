@@ -22,6 +22,8 @@ export const constellation = {
       { color: 0xa0306e, alpha: 0.12 }
     ]
   },
+  // Constellation's backdrop is the sky generator's, not a repeated tile.
+  surface: null,
   stars: {
     density: 1 / 14000,
     colors: [0xffffff, 0xd4e3ff, 0xffe9c9, 0xbcd2ff],
@@ -58,6 +60,10 @@ export const constellation = {
     glowAlpha: 0.12,
     pad: 10,
     arrow: 20,
+    // Strings take their author's colour, so a board reads as who drew what.
+    authorColours: true,
+    // Light, not a material: no fibre.
+    fibre: null,
     flow: { color: 0xffffff, alpha: 0.9, pulses: 3, speed: 170, trail: 9, spacing: 7, radius: 4.2 },
     // How sure the table is of a connection (SPEC.md 10). Confirmed is exactly
     // the string v1 drew, so a board that never touches this looks unchanged.
@@ -70,6 +76,8 @@ export const constellation = {
   },
   // A card or string the GM has shadowed: present, placed, and saying nothing.
   shadow: { alpha: 0.72 },
+  // Stars are not pinned to anything.
+  pin: null,
   // The HTML parts: the text editor and the right-click menu. Applied to the
   // page as CSS custom properties (see scripts/theme-css.js), so the stylesheet
   // itself carries no colours of its own.

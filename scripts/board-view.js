@@ -8,7 +8,8 @@ import {
   APPEAR_SECONDS, CARD_SMOOTH, CONTROL_SMOOTH, GROW_SECONDS, LEAVE_SECONDS, SETTLE_SMOOTH,
   advanceFlow, dampPoint, driftOffset, easeOut, stepClock
 } from "./motion.js";
-import { drawBadge, drawCardPlate, drawHandle, drawPortraitRing } from "./draw/card.js";
+import { drawBadge, drawCardPlate, drawHandle, drawPin, drawPortraitRing } from "./draw/card.js";
+import { makeCorkTexture } from "./draw/cork-surface.js";
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
 import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots, flowsFor } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
@@ -120,6 +121,7 @@ export class BoardView {
     }
     this.glowTexture?.destroy(true);
     this.skyTexture?.destroy(true);
+    this.surfaceTexture?.destroy(true);
     for (const round of this.portraits?.values() ?? []) round.destroy(true);
     this.portraits = null;
     this.layers = null;
@@ -283,6 +285,13 @@ export class BoardView {
     if (card.data.kind === "document") this.#drawDocumentCard(card, texture);
     else this.#drawWordsCard(card);
     this.#drawPlate(card);
+    // A pinned card is an object on a surface, so the pin goes on last, over
+    // the plate and the words, at the top edge where a hand would push it in.
+    if (this.theme.pin?.show) {
+      const pin = card.body.addChild(new this.PIXI.Graphics());
+      drawPin(pin, this.theme);
+      pin.position.set(card.data.w / 2, 3);
+    }
     this.#drawBadges(card.body, card.data, card.data.w);
     if (card.data.missing) card.body.alpha = 0.5;
     else card.body.alpha = card.data.shadowed ? this.theme.shadow.alpha : 1;
@@ -973,7 +982,14 @@ export class BoardView {
     this.onLabelChanged?.(string.data.id, value);
   }
 
+  /**
+   * A string's colour. Most of it is the author's, or one they picked, so a
+   * board reads as who drew what. A theme whose strings are a material rather
+   * than light — twine on cork — turns that off: twine is the colour twine is,
+   * and a violet rope is nobody's idea of a corkboard.
+   */
   #colorOf(string) {
+    if (this.theme.string.authorColours === false) return this.theme.string.color;
     return string.data.color ?? this.theme.string.color;
   }
 
@@ -1232,6 +1248,15 @@ export class BoardView {
 
   #buildSky() {
     const { PIXI, theme, rect } = this;
+    // A theme with a surface is a material repeated across the board, not a
+    // sky: one tiling sprite, one draw call, and no per-star bookkeeping.
+    if (theme.surface) {
+      this.surfaceTexture = makeCorkTexture(PIXI, theme);
+      const surface = new PIXI.TilingSprite(this.surfaceTexture, rect.width, rect.height);
+      surface.position.set(rect.x, rect.y);
+      this.layers.sky.addChild(surface);
+      return;
+    }
     const { stars, nebulae } = starfieldData(rect, theme);
     this.layers.sky.addChild(this.#buildBackdrop(nebulae));
     for (const data of stars) {
