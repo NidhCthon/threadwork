@@ -59,3 +59,68 @@ test("a twinkling star dims and brightens but never goes out", () => {
   assert.ok(low > 0.05 && high <= 0.8 + 1e-9 && high - low > 0.5, `${low}..${high}`);
   assert.equal(starAlpha({ twinkle: false, base: 0.4 }, 3), 0.4);
 });
+
+/* -------------------------------------------- */
+/*  The background follows the theme on load    */
+/* -------------------------------------------- */
+
+const { ensureBoardScene, paintBackground } = threadwork;
+const { cork } = await import("../scripts/themes/cork.js");
+
+/** A stand-in Level that records what it was told to become. */
+const fakeScene = (css) => {
+  const updates = [];
+  return {
+    updates,
+    levels: { contents: [{ background: { color: { css } }, update: (data) => { updates.push(data); return Promise.resolve(); } }] }
+  };
+};
+
+test("painting the background does nothing when it is already the theme's colour", async () => {
+  const scene = fakeScene("#060818");
+  assert.equal(await paintBackground(scene, theme), false);
+  assert.deepEqual(scene.updates, [], "no pointless write, so no pointless canvas redraw for everyone");
+});
+
+test("painting the background reports the change, which is what redraws every client", async () => {
+  const scene = fakeScene("#060818");
+  assert.equal(await paintBackground(scene, cork), true);
+  assert.deepEqual(scene.updates, [{ "background.color": "#6b4a2c" }]);
+});
+
+test("painting a scene that has no level is harmless", async () => {
+  assert.equal(await paintBackground({ levels: { contents: [] } }, cork), false);
+  assert.equal(await paintBackground(null, cork), false);
+});
+
+test("an existing board's background is brought to the current theme on load", async () => {
+  // A look changed while the world was down fired no onChange, so loading has
+  // to settle it or the board comes up with cork cards on a night sky.
+  const scene = fakeScene("#060818");
+  Object.assign(scene, { getFlag: (module, key) => module === "threadwork" && key === "board" });
+  const before = { scenes: game.scenes, user: game.user, users: game.users };
+  game.scenes = { find: (fn) => (fn(scene) ? scene : null) };
+  game.user = { isGM: true };
+  game.users = { activeGM: { isSelf: true } };
+  try {
+    assert.equal(await ensureBoardScene(cork), scene, "the existing board is returned, not a new one");
+    assert.deepEqual(scene.updates, [{ "background.color": "#6b4a2c" }]);
+  } finally {
+    Object.assign(game, before);
+  }
+});
+
+test("a player loading the board never writes to the scene", async () => {
+  const scene = fakeScene("#060818");
+  Object.assign(scene, { getFlag: () => true });
+  const before = { scenes: game.scenes, user: game.user, users: game.users };
+  game.scenes = { find: (fn) => (fn(scene) ? scene : null) };
+  game.user = { isGM: false };
+  game.users = { activeGM: null };
+  try {
+    assert.equal(await ensureBoardScene(cork), scene);
+    assert.deepEqual(scene.updates, [], "only a GM repaints");
+  } finally {
+    Object.assign(game, before);
+  }
+});

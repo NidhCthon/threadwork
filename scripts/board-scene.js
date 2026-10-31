@@ -31,9 +31,16 @@ export function boardSceneData(theme) {
 /** Find the board scene, creating it if this is the GM who should. */
 export async function ensureBoardScene(theme) {
   const existing = game.scenes.find(isBoardScene);
-  if (existing || !game.user.isGM) return existing ?? null;
-  // With several GMs online, only the active one creates it.
-  if (game.users.activeGM && !game.users.activeGM.isSelf) return null;
+  // With several GMs online, only the active one writes.
+  const mine = game.user.isGM && !(game.users.activeGM && !game.users.activeGM.isSelf);
+  if (existing) {
+    // The look can be changed while the world is down — by editing the setting
+    // directly, or by restoring a world — and then no onChange ever ran. So the
+    // background is brought to the current theme on load, not only at creation.
+    if (mine) await paintBackground(existing, theme);
+    return existing;
+  }
+  if (!mine) return null;
   const scene = await Scene.create(boardSceneData(theme));
   await paintBackground(scene, theme);
   return scene;
