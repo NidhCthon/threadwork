@@ -79,3 +79,25 @@ export function drawPortraitRing(g, x, y, r, theme) {
   g.drawCircle(x, y, r);
   g.endFill();
 }
+
+/**
+ * Where a card's emblem sits: on the portrait's rim at its lower right, the
+ * way a seal is pressed onto the corner of a photograph. Clear of the name,
+ * which starts to the right of the portrait.
+ */
+export function emblemCentre(px, py, r) {
+  const along = Math.SQRT1_2 * r;
+  return { x: px + along, y: py + along };
+}
+
+/** The disc behind an emblem's symbol, centred on 0, 0. */
+export function drawEmblemDisc(g, theme) {
+  const e = theme.emblem;
+  g.clear();
+  g.lineStyle({ width: 7, color: e.glow, alpha: e.glowAlpha, alignment: 1 });
+  g.drawCircle(0, 0, e.radius);
+  g.lineStyle({ width: e.ringWidth, color: e.ring, alpha: 1, alignment: 0.5 });
+  g.beginFill(e.fill, 1);
+  g.drawCircle(0, 0, e.radius);
+  g.endFill();
+}

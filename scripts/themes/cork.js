@@ -113,6 +113,18 @@ export const cork = {
     shadow: 0x2a1b0c,
     shadowAlpha: 0.38
   },
+  // A card's emblem: a wax seal pressed onto the edge of the portrait, the
+  // symbol standing out of its face. The "glow" is the seal's cast shadow.
+  emblem: {
+    radius: 28,
+    fill: 0x8e2a20,
+    ring: 0x5c1810,
+    ringWidth: 2.5,
+    glow: 0x2a1b0c,
+    glowAlpha: 0.32,
+    ink: 0xf6e4c8,
+    inset: 0.76
+  },
   // Light surface, dark ink: the inverse of constellation, which the
   // stylesheet handles because it reads every colour from these properties.
   ui: {

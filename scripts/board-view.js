@@ -8,12 +8,13 @@ import {
   APPEAR_SECONDS, CARD_SMOOTH, CONTROL_SMOOTH, GROW_SECONDS, LEAVE_SECONDS, SETTLE_SMOOTH,
   advanceFlow, dampPoint, driftOffset, easeOut, stepClock
 } from "./motion.js";
-import { drawBadge, drawCardPlate, drawHandle, drawPin, drawPortraitRing } from "./draw/card.js";
+import { drawBadge, drawCardPlate, drawEmblemDisc, drawHandle, drawPin, drawPortraitRing, emblemCentre } from "./draw/card.js";
 import { makeCorkTexture } from "./draw/cork-surface.js";
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
 import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots, flowsFor } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
 import { fitFontSize, truncateToLines } from "./text-fit.js";
+import { silhouette } from "./emblem.js";
 
 const DOUBLE_TAP_MS = 350;
 const GLOW_TEXTURE_SIZE = 64;
@@ -68,7 +69,7 @@ export class BoardView {
    * @param {PIXI.Container} options.root       Container the board draws into, in board coordinates
    * @param {object} options.theme
    * @param {{x, y, width, height}} options.rect  Area the sky covers
-   * @param {object[]} [options.cards]          {id, kind, name, caption, img, x, y, w, h, missing, color, visibility, state, shadowed, locked}
+   * @param {object[]} [options.cards]          {id, kind, name, caption, img, emblem, x, y, w, h, missing, color, visibility, state, shadowed, locked}
    * @param {object[]} [options.strings]        {id, from, to, label, arrows, color, visibility, state, certainty, shadowed, locked}
    * @param {object[]} [options.frames]         {id, x, y, w, h, title, color, visibility, locked}
    * @param {(text: string, style: object) => PIXI.Text} options.makeText
@@ -124,6 +125,8 @@ export class BoardView {
     this.surfaceTexture?.destroy(true);
     for (const round of this.portraits?.values() ?? []) round.destroy(true);
     this.portraits = null;
+    for (const pending of this.emblems?.values() ?? []) pending.then((made) => { if (made?.own) made.texture.destroy(true); });
+    this.emblems = null;
     this.layers = null;
   }
 
@@ -219,7 +222,7 @@ export class BoardView {
     card.data = { ...before, ...data, h };
     // Your own drag wins over an echo of an older position.
     if (!card.dragging && !card.carried) card.target = { x: card.data.x, y: card.data.y };
-    const looks = ["kind", "name", "img", "caption", "missing", "w", "color", "visibility", "locked", "state", "shadowed"].some((k) => before[k] !== card.data[k]);
+    const looks = ["kind", "name", "img", "emblem", "caption", "missing", "w", "color", "visibility", "locked", "state", "shadowed"].some((k) => before[k] !== card.data[k]);
     if (looks) {
       this.#layoutCard(card);
       await this.#drawCardBody(card);
@@ -277,12 +280,16 @@ export class BoardView {
   /** Everything inside the card. Redrawn whenever its data or the document behind it changes. */
   async #drawCardBody(card) {
     const token = ++card.drawToken;
-    const texture = card.data.kind === "document" && card.data.img ? await this.loadTexture(card.data.img).catch(() => null) : null;
-    // A newer redraw started while this texture loaded, or the board went away.
+    const portrait = card.data.kind === "document";
+    const [texture, emblem] = await Promise.all([
+      portrait && card.data.img ? this.loadTexture(card.data.img).catch(() => null) : null,
+      portrait && card.data.emblem ? this.#emblemTexture(card.data.emblem) : null
+    ]);
+    // A newer redraw started while these textures loaded, or the board went away.
     if (token !== card.drawToken || !this.alive || card.body.destroyed) return;
     for (const child of card.body.removeChildren()) child.destroy({ children: true });
     card.plate = card.body.addChild(new this.PIXI.Graphics());
-    if (card.data.kind === "document") this.#drawDocumentCard(card, texture);
+    if (portrait) this.#drawDocumentCard(card, texture, emblem);
     else this.#drawWordsCard(card);
     this.#drawPlate(card);
     // A pinned card is an object on a surface, so the pin goes on last, over
@@ -309,7 +316,7 @@ export class BoardView {
    * is cut with an ellipsis after that. Everything is centred vertically, so
    * a card with no caption does not leave an empty band.
    */
-  #drawDocumentCard(card, texture) {
+  #drawDocumentCard(card, texture, emblem = null) {
     const { PIXI, theme } = this;
     const c = theme.card;
     const { data, body } = card;
@@ -345,6 +352,62 @@ export class BoardView {
       sprite.position.set(px, py);
       sprite.width = sprite.height = (r - 2) * 2;
     }
+    if (emblem) this.#drawEmblem(body, emblemCentre(px, py, r), emblem);
+  }
+
+  /** A card's emblem: its disc, then the symbol in the theme's ink, fitted inside it. */
+  #drawEmblem(body, { x, y }, texture) {
+    const { PIXI, theme } = this;
+    const e = theme.emblem;
+    const disc = body.addChild(new PIXI.Graphics());
+    drawEmblemDisc(disc, theme);
+    disc.position.set(x, y);
+    const sprite = body.addChild(new PIXI.Sprite(texture));
+    sprite.anchor.set(0.5);
+    sprite.position.set(x, y);
+    sprite.tint = e.ink;
+    const fit = e.radius * 2 * e.inset;
+    const scale = fit / Math.max(texture.width || 1, texture.height || 1);
+    sprite.scale.set(scale);
+  }
+
+  /**
+   * An emblem as a one-colour silhouette, made once per image and shared by
+   * every card that wears it. Any symbol can then be tinted to the theme's
+   * ink: black artwork would vanish on a dark board, and coloured artwork
+   * would clash with it (see silhouette() in scripts/emblem.js). Drawn at
+   * about twice its size on the board, so it stays crisp when zoomed in.
+   * Resolves null if the image will not load, and the card goes without.
+   */
+  #emblemTexture(src) {
+    this.emblems ??= new Map();
+    if (!this.emblems.has(src)) {
+      this.emblems.set(src, this.loadTexture(src).then((texture) => this.#silhouetteOf(texture)).catch(() => null));
+    }
+    return this.emblems.get(src).then((made) => made?.texture ?? null);
+  }
+
+  /** {texture, own}: `own` when this board made it and must destroy it, not when it is the loader's shared copy. */
+  #silhouetteOf(texture) {
+    const source = texture?.baseTexture?.resource?.source;
+    if (!source || !globalThis.document) return texture ? { texture, own: false } : null;
+    const { width, height } = texture.frame;
+    const side = Math.ceil(this.theme.emblem.radius * 2 * this.theme.emblem.inset * 2.5);
+    const scale = side / Math.max(width, height);
+    const sheet = document.createElement("canvas");
+    sheet.width = Math.max(1, Math.round(width * scale));
+    sheet.height = Math.max(1, Math.round(height * scale));
+    const ctx = sheet.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(source, texture.frame.x, texture.frame.y, width, height, 0, 0, sheet.width, sheet.height);
+    try {
+      const pixels = ctx.getImageData(0, 0, sheet.width, sheet.height);
+      silhouette(pixels.data);
+      ctx.putImageData(pixels, 0, 0);
+    } catch {
+      // An image from another site without CORS taints the canvas: use it as it is.
+      return { texture, own: false };
+    }
+    return { texture: this.PIXI.Texture.from(sheet), own: true };
   }
 
   /**

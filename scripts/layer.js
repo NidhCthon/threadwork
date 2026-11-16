@@ -11,7 +11,8 @@ import {
   pageType, shadowCardData, shadowStringData, shadowedFor, stringCreateData, stringViewData, visibleTo
 } from "./data.js";
 import { goBack, goToBoard } from "./navigation.js";
-import { currentTheme, reduceMotion } from "./settings.js";
+import { currentTheme, emblemSettings, reduceMotion } from "./settings.js";
+import { EMBLEM_NONE, emblemChoices, emblemFor, emblemTitle } from "./emblem.js";
 import { UndoStack, beforeOf, cascadeFor } from "./undo.js";
 
 const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;
@@ -57,7 +58,7 @@ const resolve = (uuid) => (uuid ? fromUuidSync(uuid, { strict: false }) ?? null 
 // Shadowing happens here, between the page and the renderer: what a shadowed
 // card or string says is dropped before the board view ever sees it (SPEC.md 10).
 export const cardFromPage = (page, isGM = game.user?.isGM) => {
-  const data = cardViewData(page, resolve(page.system.uuid));
+  const data = cardViewData(page, resolve(page.system.uuid), emblemSettings());
   return shadowedFor(data, isGM) ? shadowCardData(data) : data;
 };
 export const stringFromPage = (page, isGM = game.user?.isGM) => {
@@ -469,8 +470,10 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       items.push({ label: LOCKED_NOTE, icon: "fa-solid fa-lock", action: () => {} });
       return showMenu(at, items, { title: card?.name ?? page.name });
     }
-    if (s.kind === "document") items.push({ label: s.caption ? "Edit caption" : "Add a caption", icon: "fa-solid fa-pen", action: () => this.view?.editCard(id) });
-    else {
+    if (s.kind === "document") {
+      items.push({ label: s.caption ? "Edit caption" : "Add a caption", icon: "fa-solid fa-pen", action: () => this.view?.editCard(id) });
+      if (emblemSettings().lookup.size) items.push({ label: "Emblem…", icon: "fa-solid fa-shield-halved", action: () => this.#emblemMenu(page, doc, at) });
+    } else {
       items.push({ label: "Edit words", icon: "fa-solid fa-pen", action: () => this.view?.editCard(id) });
       const other = s.kind === "hub" ? "text" : "hub";
       items.push({
@@ -483,6 +486,32 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     // "Remove from board", not "delete": the actor, item or journal itself is not touched.
     items.push({ label: s.kind === "document" ? "Remove from board" : "Delete", icon: "fa-solid fa-xmark", danger: true, action: () => this.removeCard(id) });
     showMenu(at, items, { title: card?.name || (s.kind === "hub" ? "Concept" : "Note") });
+  }
+
+  /**
+   * Pick a card's emblem from the world's folder, or hand it back to the
+   * document's data, or take it off. A second menu in the first one's place.
+   */
+  #emblemMenu(page, doc, at) {
+    const emblems = emblemSettings();
+    const chosen = page.system.emblem ?? "";
+    const set = (emblem) => () => this.updatePages([{ _id: page.id, system: { emblem } }]);
+    const items = [{
+      emblems: emblemChoices(emblems.lookup).map((src) => ({ src, title: emblemTitle(src) })),
+      current: chosen,
+      action: (src) => set(src)()
+    }, "-"];
+    if (emblems.fields.length) {
+      const found = emblemFor("", doc, emblems);
+      items.push({
+        label: found ? `From its sheet (${emblemTitle(found)})` : "From its sheet (nothing matches)",
+        icon: "fa-solid fa-wand-magic-sparkles",
+        current: chosen === "",
+        action: set("")
+      });
+    }
+    items.push({ label: "No emblem", icon: "fa-solid fa-ban", current: chosen === EMBLEM_NONE || (!chosen && !emblems.fields.length), action: set(EMBLEM_NONE) });
+    showMenu(at, items, { title: "Emblem" });
   }
 
   #stringMenu(page, at, editable) {

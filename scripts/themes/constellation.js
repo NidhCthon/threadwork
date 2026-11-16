@@ -78,6 +78,19 @@ export const constellation = {
   shadow: { alpha: 0.72 },
   // Stars are not pinned to anything.
   pin: null,
+  // A card's emblem (a clan, a house): a small medallion on the edge of its
+  // portrait, the symbol drawn in starlight whatever colour the image was.
+  emblem: {
+    radius: 28,
+    fill: 0x0d1330,
+    ring: 0xa9c4ff,
+    ringWidth: 2.5,
+    glow: 0x5a82ff,
+    glowAlpha: 0.3,
+    ink: 0xf2f5ff,
+    // How much of the disc the symbol fills.
+    inset: 0.76
+  },
   // The HTML parts: the text editor and the right-click menu. Applied to the
   // page as CSS custom properties (see scripts/theme-css.js), so the stylesheet
   // itself carries no colours of its own.

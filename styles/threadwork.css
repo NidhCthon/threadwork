@@ -115,6 +115,42 @@ textarea.threadwork-label-input {
     rgb(var(--threadwork-surface));
 }
 
+/* Emblems to pick from: each symbol is a mask over the text colour. */
+.threadwork-menu .threadwork-emblems {
+  display: grid;
+  grid-template-columns: repeat(6, 46px);
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.threadwork-menu .threadwork-emblems button {
+  width: 46px;
+  height: 46px;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+}
+
+.threadwork-menu .threadwork-emblems button:hover { background: rgb(var(--threadwork-glow) / 0.16); }
+
+.threadwork-menu .threadwork-emblems button.current {
+  border-color: rgb(var(--threadwork-accent));
+  background: rgb(var(--threadwork-glow) / 0.12);
+}
+
+.threadwork-menu .threadwork-emblems span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: rgb(var(--threadwork-text));
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+}
+
 .threadwork-menu button.current i { color: rgb(var(--threadwork-text)); }
 .threadwork-menu button.current { background: rgb(var(--threadwork-glow) / 0.12); }
 .threadwork-menu button.danger,

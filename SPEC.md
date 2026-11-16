@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** **0.3.0 · 30 Oct 2026 · v1 complete and every hands-on check passed.** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
+**Status:** **0.5.0 · 16 Nov 2026 · v1 complete and every hands-on check passed; card emblems added (§13).** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -404,3 +404,15 @@ The backdrop was rebuilt too. Grain as individual sprites was both invisible (0.
 Paper does not glow, so cork's glow alphas are low enough to read as a drop shadow under the card rather than a halo around it. A card given a colour gets a soft edge, not a light source.
 
 Still open, if it ever matters: twine attaches to card edges while pins sit at card tops, so a cord does not run pin to pin.
+
+## 13. Card emblems (16 Nov 2026, 0.5.0)
+
+James asked for clan symbols on the board for his Vampire chronicle. Paradox's symbols are under the Dark Pack licence, which is personal, non-sublicensable and non-commercial, and this repo is MIT, so **no third-party symbol ever goes in the repo**. Threadwork gets a generic feature instead, and the symbols live only in a world's own Data folder.
+
+- **What it is.** A portrait card can wear an emblem: a disc on the portrait's lower-right rim with a symbol in it. Notes and concepts have no portrait and wear none. A shadowed card drops its emblem with its name, because a clan says who it is as surely as a name does.
+- **Where the images come from.** A world setting names a folder (`emblemFolder`, with a folder picker). Players may not browse files, so the active GM's client lists the folder into a hidden world setting (`emblemIndex`) on load and when the folder changes, and every client matches against that list.
+- **How a card picks one.** The card page's `emblem` field is `""` (take it from the document's data), `"none"`, or an image path picked by hand from the right-click menu's **Emblem…** grid. Automatic matching reads the actor fields named in `emblemFields` (comma-separated, tried in order: `system.clan, system.sect` for the WoD20 system), slugs the text, and takes the file of that name, or else the longest file name the text starts with a whole word at a time. That is how "Brujah antitribu" wears `brujah.png` without the code knowing what an antitribu is.
+- **How it looks.** Every emblem is drawn as a one-colour silhouette tinted to the theme's `emblem.ink`. A symbol with transparency is shaped by its alpha; one without is shaped by its ink, dark on light or light on dark. Black artwork would otherwise vanish on Constellation's dark disc, and coloured artwork would clash with either theme. Constellation draws a starlit medallion and Cork a red wax seal. The silhouette is made once per image on a canvas at about twice its board size, and shared by every card that wears it.
+- **Pure parts** are in `scripts/emblem.js` (`slugify`, `emblemLookup`, `matchEmblem`, `emblemFor`, `silhouette`) and are tested in node.
+
+For SF by Night, the 26 clan and sect symbols from Paradox's free asset library (`WoD-Logos-and-Symbols.zip`, "Vampire Symbols") were trimmed, turned into white-on-transparent 256 px PNGs named by slug, and copied under V20 names where V5 renamed a clan (`assamite` → Banu Haqim, `followers-of-set` and `setite` → the Ministry). They go to the server's `Data/assets/clans/`, never to this repo.

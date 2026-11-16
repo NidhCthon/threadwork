@@ -8,7 +8,7 @@ import { ensureBoardScene, isBoardScene } from "./board-scene.js";
 import { DATA_MODELS, ensureBoardJournal, isBoardJournal } from "./data.js";
 import { onDropCanvasData } from "./drops.js";
 import { ThreadworkLayer } from "./layer.js";
-import { currentTheme, registerSettings } from "./settings.js";
+import { currentTheme, refreshEmblemIndex, registerSettings } from "./settings.js";
 import { applyThemeCss } from "./theme-css.js";
 
 export * from "./constants.js";
@@ -21,6 +21,7 @@ export * from "./draw/starfield.js";
 export * from "./actor-drag.js";
 export * from "./undo.js";
 export * from "./settings.js";
+export * from "./emblem.js";
 export * from "./theme-css.js";
 export * from "./themes/index.js";
 export { ThreadworkLayer };
@@ -52,6 +53,8 @@ Hooks.once("setup", () => allowActorDragOnBoard(CONFIG.ui.actors));
 Hooks.once("ready", async () => {
   const scene = await ensureBoardScene(currentTheme());
   await ensureBoardJournal(scene);
+  // Pick up emblem images added to the folder since the GM last loaded the world.
+  await refreshEmblemIndex();
 });
 
 // Modeless (SPEC.md 5.5): on the board scene the board layer is simply active,

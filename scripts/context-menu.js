@@ -36,6 +36,34 @@ export function closeMenu() {
 }
 
 /**
+ * A grid of emblems to pick from: {emblems: [{src, title}], current, action(src)}.
+ * Each symbol is a CSS mask over the theme's text colour, so it reads on any
+ * menu surface whatever colour the image itself is.
+ */
+function emblemGrid(item, close) {
+  const grid = document.createElement("div");
+  grid.className = "threadwork-emblems";
+  for (const { src, title } of item.emblems) {
+    const button = grid.appendChild(document.createElement("button"));
+    button.type = "button";
+    button.title = title;
+    button.setAttribute("aria-label", title);
+    if (src === item.current) button.classList.add("current");
+    const symbol = button.appendChild(document.createElement("span"));
+    // Foundry's file listing hands back paths already URL-encoded, so only
+    // the quote that would end the url() string needs escaping.
+    const url = `url("${src.replace(/"/g, "%22")}")`;
+    symbol.style.maskImage = url;
+    symbol.style.webkitMaskImage = url;
+    button.addEventListener("click", () => {
+      close();
+      item.action(src);
+    });
+  }
+  return grid;
+}
+
+/**
  * Show a menu at client coordinates. `items` are {label, icon, action} or the
  * string "-" for a divider. The menu closes on any choice, Escape, a click
  * elsewhere, or a wheel (which pans or zooms the board under it).
@@ -56,6 +84,10 @@ export function showMenu({ x, y }, items, { title } = {}) {
     }
     if (item.swatches) {
       menu.appendChild(swatchRow(item, () => close()));
+      continue;
+    }
+    if (item.emblems) {
+      menu.appendChild(emblemGrid(item, () => close()));
       continue;
     }
     const button = menu.appendChild(document.createElement("button"));

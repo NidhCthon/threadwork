@@ -8,6 +8,16 @@ The GM can also **shadow** a card or a string, so the table sees that something 
 
 Two looks, chosen for the whole world in the module settings: **Constellation**, a night sky where light runs along the strings, and **Cork**, a detective's board of brown cork, cream index cards and red twine.
 
+### Emblems
+
+A character's card can wear a small emblem on its portrait, such as a clan, house or faction symbol. Threadwork comes with no symbols. To use them, point **Card emblems: image folder** at a folder of images in your Data directory. Each one is drawn in the board's colours, so transparent PNG, WebP or SVG files work best. Then right-click a card and choose **Emblem…**.
+
+To have cards pick their own, set **Card emblems: chosen by** to the actor data that names one. With `system.clan`, a Toreador wears `toreador.png`. A name that has no file of its own uses the longest file name it starts with, so a Brujah antitribu wears `brujah.png` unless the folder has a `brujah-antitribu.png`. You can list several fields, separated by commas (`system.clan, system.sect`), and they are tried in order.
+
+The GM's client lists the folder when the GM loads the world, because players can't browse files. Images added to the folder later appear after the GM reloads.
+
+Respect the licence of the symbols you use. Most game publishers' symbols are licensed to you for your own table and not for redistribution, so keep them in your own Data folder rather than in a shared module.
+
 **Status:** in use, and still being built. See [SPEC.md](SPEC.md) for the plan and its milestones.
 
 Works with any game system. It is being built in a Pathfinder Second Edition world first.

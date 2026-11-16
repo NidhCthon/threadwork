@@ -2,6 +2,7 @@
 // pages are the cards, strings and frames. Everything below the data models is
 // a plain function over plain objects, so it can be tested without Foundry.
 import { MODULE_ID } from "./constants.js";
+import { emblemFor } from "./emblem.js";
 
 export const JOURNAL_FLAG = "board";
 export const VISIBILITY = ["everyone", "gm", "private"];
@@ -66,7 +67,10 @@ export class CardData extends foundry.abstract.TypeDataModel {
       caption: new f.StringField({ required: true, blank: true, initial: "" }),
       lastName: new f.StringField({ required: true, blank: true, initial: "" }),
       lastImg: new f.StringField({ required: false, nullable: true, initial: null }),
-      color: new f.ColorField({ required: false, nullable: true, initial: null })
+      color: new f.ColorField({ required: false, nullable: true, initial: null }),
+      // "" takes the emblem from the document's data, "none" shows none, and
+      // anything else is an image someone picked (see scripts/emblem.js).
+      emblem: new f.StringField({ required: true, blank: true, initial: "" })
     };
   }
 }
@@ -168,8 +172,9 @@ export function captionOf(doc) {
 /**
  * What the board draws for a card page. `doc` is the resolved document, or
  * null if it has been deleted; the card then shows its last known name and image.
+ * `emblems` is the world's emblem folder and fields, from `emblemSettings()`.
  */
-export function cardViewData(page, doc) {
+export function cardViewData(page, doc, emblems = null) {
   const s = page.system;
   const missing = !!s.uuid && !doc;
   return {
@@ -182,6 +187,8 @@ export function cardViewData(page, doc) {
     caption: s.caption || captionOf(doc),
     missing,
     color: s.color == null ? null : Number(s.color),
+    // Only portrait cards wear one; notes and concepts have no portrait to put it on.
+    emblem: s.kind === "document" ? emblemFor(s.emblem ?? "", doc, emblems) : null,
     visibility: s.visibility,
     state: s.state ?? "revealed",
     author: s.author,
@@ -252,12 +259,13 @@ export const shadowedFor = (data, isGM) => data?.state === "shadowed" && !isGM;
 
 /**
  * What a shadowed card shows: its plate and its place, and nothing else. The
- * name, caption and portrait are dropped here, on the way from the page to the
+ * name, caption, portrait and emblem are dropped here, on the way from the page to the
  * renderer, rather than hidden inside it — so no draw path can leak them by
  * accident, and the board view needs to know nothing about states.
  */
 export function shadowCardData(data) {
-  return { ...data, name: SHADOW_TEXT, caption: "", img: null, missing: false, shadowed: true };
+  // The emblem goes too: a clan or a house says who it is as surely as a name.
+  return { ...data, name: SHADOW_TEXT, caption: "", img: null, emblem: null, missing: false, shadowed: true };
 }
 
 /**
