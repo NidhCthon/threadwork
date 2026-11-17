@@ -30,14 +30,18 @@ test("the stylesheet takes every colour from the theme's custom properties", asy
 const { threadwork, fireOnce, registered, settings } = await import("./foundry.mjs");
 const { THEMES, DEFAULT_THEME, themeOf, themeChoices, currentTheme, themeProperties } = threadwork;
 
-/** Every key path in an object, so two themes can be compared shape to shape. */
+/**
+ * Every key path in an object, so two themes can be compared shape to shape.
+ * A text style is one value: it goes to PIXI whole, and any TextStyle option
+ * (italic, letter spacing) is a theme's own business.
+ */
 function keyPaths(value, prefix = "") {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return [prefix];
+  if (value === null || typeof value !== "object" || Array.isArray(value) || "fontFamily" in value) return [prefix];
   return Object.entries(value).flatMap(([k, v]) => keyPaths(v, prefix ? `${prefix}.${k}` : k));
 }
 
 test("the board can wear more than one theme, and the default is constellation", () => {
-  assert.deepEqual(Object.keys(THEMES).sort(), ["constellation", "cork"]);
+  assert.deepEqual(Object.keys(THEMES).sort(), ["constellation", "cork", "elysium"]);
   assert.equal(DEFAULT_THEME, "constellation");
   for (const [id, theme] of Object.entries(THEMES)) {
     assert.equal(theme.id, id, "a theme's id is the key it is registered under");
@@ -84,7 +88,7 @@ test("an unknown or missing theme id falls back to the default rather than throw
 });
 
 test("the settings menu offers each theme by title", () => {
-  assert.deepEqual(themeChoices(), { constellation: "Constellation", cork: "Cork" });
+  assert.deepEqual(themeChoices(), { constellation: "Constellation", cork: "Cork", elysium: "Elysium" });
 });
 
 test("the look is one choice for the whole world, not per player", async () => {
@@ -94,7 +98,7 @@ test("the look is one choice for the whole world, not per player", async () => {
   assert.equal(setting.options.scope, "world", "the board is shared, so its look is too");
   assert.equal(setting.options.config, true);
   assert.equal(setting.options.default, DEFAULT_THEME);
-  assert.deepEqual(Object.keys(setting.options.choices).sort(), ["constellation", "cork"]);
+  assert.deepEqual(Object.keys(setting.options.choices).sort(), ["constellation", "cork", "elysium"]);
 });
 
 test("the chosen theme is the one the board is handed", () => {

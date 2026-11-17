@@ -14,6 +14,16 @@ const stress = params.get("stress");
 const [stressCards, stressStrings] = (stress || "60,100").split(",").map(Number);
 // ?theme=cork previews a theme other than the default.
 const theme = themeOf(params.get("theme"));
+// ?painting=assets/backdrops/hall.jpg hangs a painting behind a theme that takes one;
+// ?emblems=assets/clans/brujah.png,assets/clans/ventrue.png hands them to the
+// portrait cards in turn. Both are Foundry data paths, passed through.
+const painting = params.get("painting") ?? "";
+const emblems = (params.get("emblems") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const withEmblems = (board) => {
+  if (!emblems.length) return board;
+  let i = 0;
+  return { ...board, cards: board.cards.map((card) => (card.kind === "document" ? { ...card, emblem: emblems[i++ % emblems.length] } : card)) };
+};
 
 await document.fonts.load(`${theme.card.name.fontSize}px Signika`);
 applyThemeCss(theme);
@@ -80,7 +90,7 @@ const view = new BoardView({
   root,
   theme,
   rect,
-  ...(stress === null ? demoBoard(rect) : stressBoard(rect, stressCards, stressStrings)),
+  ...withEmblems(stress === null ? demoBoard(rect) : stressBoard(rect, stressCards, stressStrings)),
   makeText: (text, style) => {
     const t = new PIXI.Text(text, style);
     t.resolution = 2 * window.devicePixelRatio;
@@ -91,7 +101,8 @@ const view = new BoardView({
   editText,
   userColor: 0xffa46b,
   renderer: app.renderer,
-  reducedMotion: prefersReducedMotion()
+  reducedMotion: prefersReducedMotion(),
+  painting
 });
 // No journal here: new strings live only in this page.
 let made = 0;

@@ -8,8 +8,13 @@ import {
   APPEAR_SECONDS, CARD_SMOOTH, CONTROL_SMOOTH, GROW_SECONDS, LEAVE_SECONDS, SETTLE_SMOOTH,
   advanceFlow, dampPoint, driftOffset, easeOut, stepClock
 } from "./motion.js";
-import { drawBadge, drawCardPlate, drawEmblemDisc, drawHandle, drawPin, drawPortraitRing, emblemCentre } from "./draw/card.js";
+import {
+  drawBadge, drawCardPlate, drawEmblemDisc, drawHandle, drawPin, drawPortraitRing, drawSeal, drawSealMark,
+  emblemCentre, sealCentre, seedOf
+} from "./draw/card.js";
+import { coverFit, makeBackdropTexture, toneFilter, viewOnBoard } from "./draw/backdrop.js";
 import { makeCorkTexture } from "./draw/cork-surface.js";
+import { makeDamaskTexture } from "./draw/damask-surface.js";
 import { drawFramePlate, drawGrip, drawGuides } from "./draw/frame.js";
 import { curvesClose, drawLabelDot, drawLabelPlate, drawString, flowDotCount, flowDots, flowsFor } from "./draw/string.js";
 import { makeGlowTexture, starAlpha, starfieldData } from "./draw/starfield.js";
@@ -42,6 +47,10 @@ const LIGHT_EASE = 0.12;
 /** The baked backdrop: at most a quarter of board resolution, and never over 4096 px on a side. */
 const SKY_BAKE_RESOLUTION = 0.25;
 const SKY_BAKE_MAX_SIZE = 4096;
+/** A surface theme's repeated tile, by `theme.surface.kind`. */
+const SURFACES = { cork: makeCorkTexture, damask: makeDamaskTexture };
+/** A theme colour as a canvas fill style. */
+const rgba = (color, alpha) => `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, ${alpha})`;
 
 export class BoardView {
   /** (cardId, {x, y}) when the user finishes dragging a card. */
@@ -79,12 +88,13 @@ export class BoardView {
    * @param {number|null} [options.userColor]   Colour for strings this user draws
    * @param {PIXI.Renderer} [options.renderer]  Used to bake the static backdrop into one texture
    * @param {boolean} [options.reducedMotion]
+   * @param {string} [options.painting]         An image to hang behind the surface, for a theme that takes one
    */
   constructor({
     PIXI, root, theme, rect, cards = [], strings = [], frames = [], makeText, loadTexture, editText,
-    canModify = () => true, userColor = null, renderer = null, reducedMotion = false
+    canModify = () => true, userColor = null, renderer = null, reducedMotion = false, painting = ""
   }) {
-    Object.assign(this, { PIXI, root, theme, rect, makeText, loadTexture, editText, canModify, userColor, renderer, reducedMotion });
+    Object.assign(this, { PIXI, root, theme, rect, makeText, loadTexture, editText, canModify, userColor, renderer, reducedMotion, painting });
     this.initial = { cards, strings, frames };
     this.cards = new Map();
     this.strings = new Map();
@@ -108,7 +118,7 @@ export class BoardView {
     this.layers.cards.sortableChildren = true;
     this.layers.frames.sortableChildren = true;
     this.guideLines = this.layers.guides.addChild(new PIXI.Graphics());
-    this.#buildSky();
+    await this.#buildSky();
     for (const data of this.initial.frames) this.addFrame(data, { animate: false });
     for (const data of this.initial.cards) await this.addCard(data, { animate: false });
     for (const data of this.initial.strings) this.addString(data, { animate: false });
@@ -123,6 +133,7 @@ export class BoardView {
     this.glowTexture?.destroy(true);
     this.skyTexture?.destroy(true);
     this.surfaceTexture?.destroy(true);
+    this.paintingTexture?.destroy(true);
     for (const round of this.portraits?.values() ?? []) round.destroy(true);
     this.portraits = null;
     for (const pending of this.emblems?.values() ?? []) pending.then((made) => { if (made?.own) made.texture.destroy(true); });
@@ -299,7 +310,10 @@ export class BoardView {
       drawPin(pin, this.theme);
       pin.position.set(card.data.w / 2, 3);
     }
-    this.#drawBadges(card.body, card.data, card.data.w);
+    // A sealed card's seal sits where its badges would start, so they move left of it.
+    const sealed = !!this.theme.seal && card.data.kind !== "hub";
+    if (sealed) this.#drawSeal(card, emblem);
+    this.#drawBadges(card.body, card.data, card.data.w, sealed ? this.theme.seal.right + this.theme.emblem.radius : 0);
     if (card.data.missing) card.body.alpha = 0.5;
     else card.body.alpha = card.data.shadowed ? this.theme.shadow.alpha : 1;
   }
@@ -352,7 +366,45 @@ export class BoardView {
       sprite.position.set(px, py);
       sprite.width = sprite.height = (r - 2) * 2;
     }
-    if (emblem) this.#drawEmblem(body, emblemCentre(px, py, r), emblem);
+    // A theme that seals its cards carries the emblem in the seal instead.
+    if (emblem && theme.emblem.place !== "seal") this.#drawEmblem(body, emblemCentre(px, py, r), emblem);
+  }
+
+  /**
+   * A card's wax seal. With an emblem it is bigger and the symbol is pressed
+   * into it as gold leaf: a dark impression just below, the gold, and a faint
+   * shine just above, so it reads as raised at table zoom. Without one it
+   * carries the theme's stamped flower.
+   */
+  #drawSeal(card, emblem) {
+    const { PIXI, theme } = this;
+    const e = theme.emblem;
+    const carries = !!emblem && e.place === "seal";
+    const radius = carries ? e.radius : theme.seal.radius;
+    const at = sealCentre(card.data.w, theme);
+    const wax = card.body.addChild(new PIXI.Graphics());
+    drawSeal(wax, theme, radius, seedOf(card.data.id));
+    wax.position.set(at.x, at.y);
+    if (!carries) {
+      const mark = card.body.addChild(new PIXI.Graphics());
+      drawSealMark(mark, theme, radius);
+      mark.position.set(at.x, at.y);
+      return;
+    }
+    const fit = radius * 2 * e.inset;
+    const scale = fit / Math.max(emblem.width || 1, emblem.height || 1);
+    const leaf = e.leaf;
+    const layers = leaf
+      ? [[leaf.offset, leaf.offset * 1.2, leaf.shadow, leaf.shadowAlpha], [0, 0, e.ink, 1], [-leaf.offset * 0.5, -leaf.offset * 0.6, leaf.shine, leaf.shineAlpha]]
+      : [[0, 0, e.ink, 1]];
+    for (const [dx, dy, tint, alpha] of layers) {
+      const sprite = card.body.addChild(new PIXI.Sprite(emblem));
+      sprite.anchor.set(0.5);
+      sprite.position.set(at.x + dx, at.y + dy);
+      sprite.scale.set(scale);
+      sprite.tint = tint;
+      sprite.alpha = alpha;
+    }
   }
 
   /** A card's emblem: its disc, then the symbol in the theme's ink, fitted inside it. */
@@ -453,13 +505,29 @@ export class BoardView {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext("2d");
+    // A theme's cameo is an oval, narrower than it is tall, and toned.
+    const cameo = this.theme.card.cameo;
+    const aspect = cameo?.aspect ?? 1;
+    const half = size / 2;
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.ellipse(half, half, half * aspect, half, 0, 0, Math.PI * 2);
     ctx.clip();
-    // Cover the circle, like background-size: cover, from the texture's own frame.
+    // Cover the shape, like background-size: cover, from the texture's own frame.
     const { x, y, width, height } = texture.frame;
-    const side = Math.min(width, height);
-    ctx.drawImage(source, x + (width - side) / 2, y + (height - side) / 2, side, side, 0, 0, size, size);
+    const sw = Math.min(width, height * aspect);
+    const sh = sw / aspect;
+    const filter = toneFilter(cameo?.tone);
+    if (filter && "filter" in ctx) ctx.filter = filter;
+    ctx.drawImage(source, x + (width - sw) / 2, y + (height - sh) / 2, sw, sh, half - half * aspect, 0, size * aspect, size);
+    ctx.filter = "none";
+    if (cameo) {
+      // Darker towards the rim, the way an old photograph fades.
+      const shade = ctx.createRadialGradient(half, half, half * 0.5, half, half, half * 1.05);
+      shade.addColorStop(0, rgba(cameo.shade, 0));
+      shade.addColorStop(1, rgba(cameo.shade, cameo.shadeAlpha));
+      ctx.fillStyle = shade;
+      ctx.fillRect(0, 0, size, size);
+    }
     const round = this.PIXI.Texture.from(canvas);
     this.portraits.set(key, round);
     return round;
@@ -494,8 +562,8 @@ export class BoardView {
     card.captionText = text;
   }
 
-  /** Small pills along the top edge for anything not simply public and open. */
-  #drawBadges(parent, data, width) {
+  /** Small pills along the top edge for anything not simply public and open, ending `inset` from the right. */
+  #drawBadges(parent, data, width, inset = 0) {
     const b = this.theme.badge;
     const words = [];
     if (data.locked) words.push(["LOCKED", b.locked]);
@@ -510,7 +578,7 @@ export class BoardView {
       if (data.certainty === "rumored") words.push(["RUMORED", b.rumored]);
       if (data.certainty === "suspected") words.push(["SUSPECTED", b.suspected]);
     }
-    let right = width - 14;
+    let right = width - 14 - inset;
     for (const [word, color] of words) {
       const text = this.makeText(word, b.text);
       const pillW = Math.ceil(text.width + 18);
@@ -1106,6 +1174,7 @@ export class BoardView {
   update(dt) {
     if (!this.alive) return;
     this.time += dt;
+    this.#placePainting();
     const reduced = this.reducedMotion;
     const focus = this.#focus();
     const ease = 1 - Math.exp(-dt / LIGHT_EASE);
@@ -1261,8 +1330,58 @@ export class BoardView {
   async #loadFonts() {
     const t = this.theme;
     const styles = [t.card.name, t.card.caption, t.label.text, t.hub.text, t.note.text, t.frame.title, t.badge.text];
-    const faces = styles.map((s) => `${s.fontWeight ?? "400"} ${s.fontSize}px ${s.fontFamily}`);
+    const faces = styles.map((s) => `${s.fontStyle ?? "normal"} ${s.fontWeight ?? "400"} ${s.fontSize}px "${s.fontFamily}"`);
     await Promise.all(faces.map((face) => globalThis.document?.fonts?.load(face).catch(() => null)));
+  }
+
+  /**
+   * The world's painting, toned to the theme and hung as one sprite under the
+   * surface, clipped to the board. Only for a theme that takes one
+   * (`theme.backdrop`). It stays still on screen while the board moves (see
+   * scripts/draw/backdrop.js), so #placePainting fits it to the view every
+   * frame the view has changed. Returns whether it hung: an image that will
+   * not load leaves the surface on its own, as if there were none.
+   */
+  async #hangPainting() {
+    const { PIXI, theme, rect } = this;
+    if (!theme.backdrop || !this.painting) return false;
+    const texture = await this.loadTexture(this.painting).catch(() => null);
+    if (!this.layers || !texture) return false;
+    this.paintingTexture = makeBackdropTexture(PIXI, texture, theme);
+    if (!this.paintingTexture) return false;
+    const sprite = this.layers.sky.addChild(new PIXI.Sprite(this.paintingTexture));
+    // A rectangle mask is a scissor test, not a stencil, so it costs nothing.
+    const clip = this.layers.sky.addChild(new PIXI.Graphics());
+    clip.beginFill(0, 1); // A mask's colour is never seen; only its shape matters.
+    clip.drawRect(rect.x, rect.y, rect.width, rect.height);
+    clip.endFill();
+    sprite.mask = clip;
+    this.paintingSprite = sprite;
+    this.paintingView = null;
+    this.paintingProbe = new PIXI.Point(0, 0);
+    this.#placePainting();
+    return true;
+  }
+
+  /** Fit the painting to the screen, in board coordinates, when the view has moved or resized. */
+  #placePainting() {
+    const sprite = this.paintingSprite;
+    const screen = this.renderer?.screen;
+    if (!sprite || !screen) return;
+    // This runs before the frame renders, when a pan has moved the stage but
+    // not yet refreshed the board's world transform. toGlobal refreshes it
+    // (the board and its parents only), or the painting would trail a pan by
+    // a frame.
+    this.root.toGlobal(this.paintingProbe, this.paintingProbe);
+    this.paintingProbe.set(0, 0);
+    const { a, d, tx, ty } = this.root.worldTransform;
+    const last = this.paintingView;
+    if (last && last.a === a && last.d === d && last.tx === tx && last.ty === ty && last.w === screen.width && last.h === screen.height) return;
+    this.paintingView = { a, d, tx, ty, w: screen.width, h: screen.height };
+    const fit = coverFit(this.paintingTexture.width, this.paintingTexture.height, viewOnBoard({ a, d, tx, ty }, screen));
+    sprite.position.set(fit.x, fit.y);
+    sprite.width = fit.width;
+    sprite.height = fit.height;
   }
 
   /**
@@ -1309,14 +1428,17 @@ export class BoardView {
     return baked;
   }
 
-  #buildSky() {
+  async #buildSky() {
     const { PIXI, theme, rect } = this;
     // A theme with a surface is a material repeated across the board, not a
     // sky: one tiling sprite, one draw call, and no per-star bookkeeping.
     if (theme.surface) {
-      this.surfaceTexture = makeCorkTexture(PIXI, theme);
+      const painting = await this.#hangPainting();
+      this.surfaceTexture = SURFACES[theme.surface.kind](PIXI, theme);
       const surface = new PIXI.TilingSprite(this.surfaceTexture, rect.width, rect.height);
       surface.position.set(rect.x, rect.y);
+      // Over a painting the surface is a veil, so the painting shows through.
+      if (painting) surface.alpha = theme.backdrop.veil;
       this.layers.sky.addChild(surface);
       return;
     }

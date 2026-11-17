@@ -12,10 +12,12 @@ import { fileURLToPath } from "node:url";
 const PORT = Number(process.env.PREVIEW_PORT ?? 30010);
 const FOUNDRY = process.env.FOUNDRY_URL ?? "http://localhost:30001";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
-const FROM_FOUNDRY = ["/fonts/", "/icons/", "/systems/"];
+// /assets/ is the local Data folder's, where a world keeps its own emblems and paintings.
+const FROM_FOUNDRY = ["/fonts/", "/icons/", "/systems/", "/assets/"];
 const TYPES = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
-  ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"
+  ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp",
+  ".jpg": "image/jpeg", ".woff2": "font/woff2"
 };
 
 // POST a PNG data URL here (threadworkPreview.snapshot() does) to save it under

@@ -15,6 +15,8 @@ export const REDUCE_MOTION = "reduceMotion";
 export const THEME = "theme";
 export const EMBLEM_FOLDER = "emblemFolder";
 export const EMBLEM_FIELDS = "emblemFields";
+/** An image hung behind the board's surface, for a theme that takes one (SPEC.md 14). */
+export const PAINTING = "painting";
 /** The emblem folder's image paths. Hidden: the GM keeps it, because players may not browse files. */
 export const EMBLEM_INDEX = "emblemIndex";
 
@@ -88,6 +90,18 @@ async function applyTheme() {
   if (!painted && isBoardScene(globalThis.canvas?.scene)) await globalThis.canvas.draw();
 }
 
+/** The world's painting for the board, or "" for none. */
+export const boardPainting = () => String(read(PAINTING, "") ?? "").trim();
+
+/**
+ * Redraw the board with the painting as it now is. A world setting's onChange
+ * runs on every client, so each redraws its own canvas, and only if it is
+ * looking at the board.
+ */
+function rehangPainting() {
+  if (isBoardScene(globalThis.canvas?.scene)) globalThis.canvas.draw();
+}
+
 /** Whether this user's board should hold still: their own setting, or their OS's preference. */
 export function reduceMotion() {
   let chosen = false;
@@ -101,13 +115,23 @@ const refresh = () => globalThis.canvas?.[MODULE_ID]?.view?.setReducedMotion(red
 export function registerSettings() {
   game.settings.register(MODULE_ID, THEME, {
     name: "Party Board look",
-    hint: "Constellation is a night sky with light running along the strings. Cork is a detective's board: brown cork, cream index cards and red twine. It changes the board for everyone.",
+    hint: "Constellation is a night sky with light running along the strings. Cork is a detective's board: brown cork, cream index cards and red twine. Elysium is a court's salon: crimson damask, cream cards with wax seals, sepia portraits and silk ribbons. It changes the board for everyone.",
     scope: "world",
     config: true,
     type: String,
     choices: themeChoices(),
     default: DEFAULT_THEME,
     onChange: applyTheme
+  });
+  game.settings.register(MODULE_ID, PAINTING, {
+    name: "Party Board painting",
+    hint: "An image hung behind the board's pattern, for looks that use one (Elysium). It fills the screen and stays still while the board pans and zooms over it, darkened to suit the look. Leave empty for the pattern alone.",
+    scope: "world",
+    config: true,
+    type: String,
+    filePicker: "image",
+    default: "",
+    onChange: rehangPainting
   });
   game.settings.register(MODULE_ID, REDUCE_MOTION, {
     name: "Reduce motion on the Party Board",

@@ -17,6 +17,12 @@ function fillArrow(g, head, color, alpha = 1) {
 
 const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 
+const shiftCurve = ({ p0, p1, p2 }, dx, dy) => ({
+  p0: { x: p0.x + dx, y: p0.y + dy },
+  p1: { x: p1.x + dx, y: p1.y + dy },
+  p2: { x: p2.x + dx, y: p2.y + dy }
+});
+
 /**
  * A curve cut into dashes: an array of flat [x, y, x, y, …] polylines, one per
  * dash. The curve is walked in short steps and each step is kept or dropped by
@@ -71,17 +77,20 @@ export function drawString(g, curve, theme, { color, arrows = "forward", certain
   const s = theme.string;
   const look = s.certainty?.[certainty] ?? s.certainty?.confirmed ?? { alpha: 1, dash: 0, gap: 0 };
   const runs = look.dash > 0 ? dashedSegments(curve, look.dash, look.gap) : null;
-  // One stroke, however this theme draws its strings: whole or in dashes.
-  const lay = (width, strokeColor, alpha) => {
-    if (runs) strokeRuns(g, runs, width, strokeColor, alpha);
-    else stroke(g, curve, width, strokeColor, alpha);
+  // One stroke, however this theme draws its strings: whole or in dashes,
+  // optionally shifted by dx, dy (a cast shadow).
+  const lay = (width, strokeColor, alpha, dx = 0, dy = 0) => {
+    if (runs) strokeRuns(g, dx || dy ? runs.map((run) => run.map((v, i) => v + (i % 2 ? dy : dx))) : runs, width, strokeColor, alpha);
+    else stroke(g, dx || dy ? shiftCurve(curve, dx, dy) : curve, width, strokeColor, alpha);
   };
   g.clear();
   if (s.fibre) {
     // Twine: a dark edge the whole way round, the cord itself, then a lighter
     // sheen down the middle, which is what makes it read as round and solid
-    // rather than as a drawn line.
+    // rather than as a drawn line. A ribbon over a painting also casts a
+    // shadow (`drop`), so it reads as lying on top of it.
     const f = s.fibre;
+    if (f.drop) lay(s.width + 1, f.drop.color, f.drop.alpha * look.alpha, f.drop.x, f.drop.y);
     lay(f.edgeWidth, f.edge, f.edgeAlpha * look.alpha);
     lay(s.width, color, look.alpha);
     lay(f.sheenWidth, f.sheen, f.sheenAlpha * look.alpha);

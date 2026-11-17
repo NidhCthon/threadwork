@@ -18,7 +18,9 @@ export const cork = {
   // keys and cork has no use for either, so they are null.
   nebula: null,
   stars: null,
+  backdrop: null,
   surface: {
+    kind: "cork",
     tile: 512,
     // The speckle. Small stretched flecks, light and dark, thick enough to
     // read as a material at table zoom rather than as noise.
@@ -68,6 +70,8 @@ export const cork = {
     portrait: 104,
     portraitBack: 0xe3d6bd,
     ring: 0xb09a74,
+    rule: null,
+    cameo: null,
     name: { fontFamily: "Signika", fontSize: 34, fontWeight: "600", fill: 0x2b2118 },
     nameMinSize: 22,
     caption: { fontFamily: "Signika", fontSize: 22, fill: 0x6b5a45 }
@@ -91,7 +95,8 @@ export const cork = {
       edgeAlpha: 0.85,
       sheen: 0xe8a07f,
       sheenWidth: 2.4,
-      sheenAlpha: 0.5
+      sheenAlpha: 0.5,
+      drop: null
     },
     flow: { color: 0xffe8b8, alpha: 0, pulses: 1, speed: 170, trail: 1, spacing: 7, radius: 1 },
     certainty: {
@@ -113,9 +118,11 @@ export const cork = {
     shadow: 0x2a1b0c,
     shadowAlpha: 0.38
   },
+  seal: null,
   // A card's emblem: a wax seal pressed onto the edge of the portrait, the
   // symbol standing out of its face. The "glow" is the seal's cast shadow.
   emblem: {
+    place: "rim",
     radius: 28,
     fill: 0x8e2a20,
     ring: 0x5c1810,
@@ -123,7 +130,8 @@ export const cork = {
     glow: 0x2a1b0c,
     glowAlpha: 0.32,
     ink: 0xf6e4c8,
-    inset: 0.76
+    inset: 0.76,
+    leaf: null
   },
   // Light surface, dark ink: the inverse of constellation, which the
   // stylesheet handles because it reads every colour from these properties.
@@ -138,6 +146,7 @@ export const cork = {
   },
   palette: [0xb4342a, 0x1f6f5c, 0x2b4a8a, 0x8a5a1f, 0x6b3a7a, 0x3d6b1f, 0x2b2118, 0xf2e8d5],
   hub: {
+    fill: 0xf2e8d5,
     borderWidth: 3,
     glowAlpha: 0.12,
     hoverGlowAlpha: 0.22,
@@ -164,7 +173,8 @@ export const cork = {
     minW: 360,
     minH: 240,
     color: 0xc9b48e,
-    title: { fontFamily: "Signika", fontSize: 32, fontWeight: "600", fill: 0xf5ecd8 }
+    title: { fontFamily: "Signika", fontSize: 32, fontWeight: "600", fill: 0xf5ecd8 },
+    gilt: null
   },
   badge: {
     text: { fontFamily: "Signika", fontSize: 15, fontWeight: "700", fill: 0x2b2118, letterSpacing: 1 },

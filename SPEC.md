@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** **0.5.0 · 16 Nov 2026 · v1 complete and every hands-on check passed; card emblems added (§13).** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
+**Status:** **0.6.0 · 16 Nov 2026 · v1 complete and every hands-on check passed; card emblems added (§13); Elysium, the third theme, built (§14).** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -416,3 +416,32 @@ James asked for clan symbols on the board for his Vampire chronicle. Paradox's s
 - **Pure parts** are in `scripts/emblem.js` (`slugify`, `emblemLookup`, `matchEmblem`, `emblemFor`, `silhouette`) and are tested in node.
 
 For SF by Night, the 26 clan and sect symbols from Paradox's free asset library (`WoD-Logos-and-Symbols.zip`, "Vampire Symbols") were trimmed, turned into white-on-transparent 256 px PNGs named by slug, and copied under V20 names where V5 renamed a clan (`assamite` → Banu Haqim, `followers-of-set` and `setite` → the Ministry). They go to the server's `Data/assets/clans/`, never to this repo.
+
+## 14. Elysium, the third theme (16 Nov 2026, 0.6.0)
+
+James asked for a look for his Vampire chronicle. Two moodboard looks, Elysium and Vitae, were mocked up with Paradox's portraits, clan symbols and scene paintings (kept outside the repo). He chose **Elysium, with the clan symbol in the seal, the painting behind the pattern, and portraits tinted to the look.**
+
+What it is: crimson damask velvet; cream cards with a gilt edge and a gilt rule inside it; portraits as oval sepia cameos; a wax seal across the top of every card except a concept; crimson silk ribbons with a cast shadow and a slow gold glint on confirmed strings; gilt picture frames with a dark title band; Cinzel for names and titles and Cormorant Garamond italic for captions and string tags.
+
+Lesson three of §12 held again: the colours were one more file, and the behaviour was not. New theme keys, each `null` (or the old behaviour, stated explicitly) in Constellation and Cork:
+
+- **`surface.kind`** picks the tile painter: `"cork"` or `"damask"` (`scripts/draw/damask-surface.js`). The damask is the classic ogee: wavy columns whose bulges alternate, with a flower in every other lozenge. It repeats every two columns and two rows, which is exactly one tile.
+- **`backdrop`** (`tone`, `veil`): the theme takes a painting, toned by a canvas filter once, with the surface laid over it at `veil` opacity.
+- **`card.rule`** draws the inner gilt line. **`card.cameo`** makes the portrait an oval and tones and shades it as it is cut out, so it costs nothing per frame.
+- **`seal`** is the wax seal: an uneven edge seeded by the card's id, so each card's seal is its own and keeps its shape. **`emblem.place`** is `"rim"` (the 0.5.0 disc) or `"seal"`, and **`emblem.leaf`** draws the symbol as gold leaf: a dark impression, the gold, and a faint shine.
+- **`string.fibre.drop`** is a ribbon's cast shadow. **`hub.fill`** lets a concept's plate differ from a card's (crimson against cream). **`frame.gilt`** draws the moulding, title band and corner studs.
+- A text style now counts as one value in the shape test, because PIXI takes it whole and italic or letter spacing are a theme's own business.
+
+**The painting hangs still behind the view; it is not stretched over the board.** The world names it in a new setting, **Party Board painting** (`painting`, world scope, image picker). Published illustrations are about 1300 to 5000 px wide and the board is 8000, so stretched across the board the mock-up's painting would be magnified about six times at table zoom. Fitted to the screen instead, it is shown at about the scale of the mock-up, and the board pans over it like a window onto a room. A rectangular mask keeps it inside the board, and PIXI does that with a scissor test, not a stencil. The board's world transform is refreshed with `toGlobal` before the painting is placed, because the update runs before the render and would otherwise trail a pan by a frame. A browser without canvas filters (older Safari) shows the painting and portraits untoned.
+
+**The seal had to move.** In the first preview the seal covered the end of a two-line name. It now sits centred just above the card's top edge, and badges start to the left of it. Concepts carry no seal, because a crimson seal on a crimson plate disappears.
+
+**Fonts.** Foundry ships neither typeface, and the WoD system's fonts belong to that system. Both are SIL OFL, so they ship in `styles/fonts/` with their licences, credited in `THIRD_PARTY_NOTICES.md`. They are Fontsource 5.3.0's variable WOFF2 builds, split into latin and latin-ext, so the browser fetches the second half only for a name that needs it.
+
+**Cost.** On the stress board (60 cards, 100 strings, 5 frames) in the preview, with its pane hidden, so the numbers are only good for comparison: Elysium with a painting averaged 7.9 ms a frame (95th percentile 16.8), Constellation 8.3 (16.8) and Cork 5.6 (13.1). Elysium costs what the default theme that passed M4 costs.
+
+For SF by Night, the painting is Paradox's grand lobby (`Locations33`, 1296 by 875), as in the mock-up. It goes in the world's `Data/assets/backdrops/`, never in this repo. Any bigger painting will look sharper.
+
+The preview takes `?theme=elysium&painting=assets/backdrops/elysium-lobby.jpg&emblems=assets/clans/ventrue.png,assets/clans/brujah.png`. The serve script now passes `/assets/` through to the local Foundry.
+
+Still to check by hand in Foundry: the look with the table's own portraits, the painting loaded through Foundry's texture loader, and how the board feels when panning over the painting.

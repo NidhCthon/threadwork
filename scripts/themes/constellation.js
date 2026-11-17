@@ -24,6 +24,8 @@ export const constellation = {
   },
   // Constellation's backdrop is the sky generator's, not a repeated tile.
   surface: null,
+  // No painting behind a sky: the board's painting setting does nothing here.
+  backdrop: null,
   stars: {
     density: 1 / 14000,
     colors: [0xffffff, 0xd4e3ff, 0xffe9c9, 0xbcd2ff],
@@ -46,6 +48,9 @@ export const constellation = {
     portrait: 104,
     portraitBack: 0x050816,
     ring: 0xa9c4ff,
+    // No ruled line inside the plate, and round portraits rather than cameos.
+    rule: null,
+    cameo: null,
     name: { fontFamily: "Signika", fontSize: 34, fontWeight: "600", fill: 0xf2f5ff },
     // A name too long for two lines at full size shrinks, but never below this.
     nameMinSize: 22,
@@ -78,9 +83,12 @@ export const constellation = {
   shadow: { alpha: 0.72 },
   // Stars are not pinned to anything.
   pin: null,
+  seal: null,
   // A card's emblem (a clan, a house): a small medallion on the edge of its
   // portrait, the symbol drawn in starlight whatever colour the image was.
   emblem: {
+    // On the portrait's rim, not in a seal.
+    place: "rim",
     radius: 28,
     fill: 0x0d1330,
     ring: 0xa9c4ff,
@@ -89,7 +97,8 @@ export const constellation = {
     glowAlpha: 0.3,
     ink: 0xf2f5ff,
     // How much of the disc the symbol fills.
-    inset: 0.76
+    inset: 0.76,
+    leaf: null
   },
   // The HTML parts: the text editor and the right-click menu. Applied to the
   // page as CSS custom properties (see scripts/theme-css.js), so the stylesheet
@@ -107,6 +116,7 @@ export const constellation = {
   palette: [0x8ec5ff, 0xb48cff, 0xff6b9a, 0xff6b6b, 0xffa46b, 0xffe06b, 0x6be0c2, 0xe9eeff],
   // A concept: bigger, brighter, its words centred.
   hub: {
+    fill: 0x0d1330,
     borderWidth: 3,
     glowAlpha: 0.3,
     hoverGlowAlpha: 0.5,
@@ -132,7 +142,8 @@ export const constellation = {
     minW: 360,
     minH: 240,
     color: 0x86aaff,
-    title: { fontFamily: "Signika", fontSize: 32, fontWeight: "600", fill: 0xdfe6ff }
+    title: { fontFamily: "Signika", fontSize: 32, fontWeight: "600", fill: 0xdfe6ff },
+    gilt: null
   },
   badge: {
     text: { fontFamily: "Signika", fontSize: 15, fontWeight: "700", fill: 0x0a0f26, letterSpacing: 1 },

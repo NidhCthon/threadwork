@@ -11,7 +11,7 @@ import {
   pageType, shadowCardData, shadowStringData, shadowedFor, stringCreateData, stringViewData, visibleTo
 } from "./data.js";
 import { goBack, goToBoard } from "./navigation.js";
-import { currentTheme, emblemSettings, reduceMotion } from "./settings.js";
+import { boardPainting, currentTheme, emblemSettings, reduceMotion } from "./settings.js";
 import { EMBLEM_NONE, emblemChoices, emblemFor, emblemTitle } from "./emblem.js";
 import { UndoStack, beforeOf, cascadeFor } from "./undo.js";
 
@@ -142,7 +142,8 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
       canModify: (item) => canModify(item, game.user),
       userColor: colorOfUser(game.user.id),
       renderer: canvas.app.renderer,
-      reducedMotion: reduceMotion()
+      reducedMotion: reduceMotion(),
+      painting: boardPainting()
     });
     view.onCardMoved = (id, { x, y }) => this.updatePages([{ _id: id, system: { x, y } }]);
     view.onLabelChanged = (id, label) => this.updatePages([{ _id: id, system: { label } }]);

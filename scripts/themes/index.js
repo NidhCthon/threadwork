@@ -3,8 +3,9 @@
 // more file beside these and one more line here.
 import { constellation } from "./constellation.js";
 import { cork } from "./cork.js";
+import { elysium } from "./elysium.js";
 
-export const THEMES = { [constellation.id]: constellation, [cork.id]: cork };
+export const THEMES = { [constellation.id]: constellation, [cork.id]: cork, [elysium.id]: elysium };
 export const DEFAULT_THEME = constellation.id;
 
 /** The theme with this id, falling back to the default rather than throwing. */
