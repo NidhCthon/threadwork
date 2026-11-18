@@ -71,6 +71,8 @@ export class BoardView {
   onFrameRenamed = null;
   /** (cardId) when the user cancels editing a card's words, so a brand-new empty note can go. */
   onEditCancelled = null;
+  /** (cardId) => boolean on a double-click on a character, item or journal card: true if its sheet opened. */
+  onOpenCard = null;
 
   /**
    * @param {object} options
@@ -599,8 +601,10 @@ export class BoardView {
     container.on("pointertap", () => {
       if (card.moved) return;
       const now = performance.now();
-      if (now - card.lastTap < DOUBLE_TAP_MS) this.#editCard(card);
-      card.lastTap = now;
+      const double = now - card.lastTap < DOUBLE_TAP_MS;
+      // A third quick click starts a new pair rather than opening it twice.
+      card.lastTap = double ? 0 : now;
+      if (double) this.#openOrEdit(card);
     });
     container.on("pointerdown", (event) => {
       if (event.button !== 0) return;
@@ -648,6 +652,17 @@ export class BoardView {
     if (card.hover === on) return;
     card.hover = on;
     this.#drawPlate(card);
+  }
+
+  /**
+   * A double-click opens a character's, item's or journal's sheet, as a
+   * double-click on a token or in the sidebar does. A note or concept has no
+   * sheet, so its words open for editing; so does the caption of a card
+   * whose sheet this user can't see. A caption is also on the right-click menu.
+   */
+  #openOrEdit(card) {
+    if (card.data.kind === "document" && this.onOpenCard?.(card.data.id)) return;
+    this.#editCard(card);
   }
 
   async #editCard(card, initial) {

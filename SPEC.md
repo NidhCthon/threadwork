@@ -1,6 +1,6 @@
 # Threadwork — Build Spec
 
-**Status:** **0.6.0 · 16 Nov 2026 · v1 complete and every hands-on check passed; card emblems added (§13); Elysium, the third theme, built (§14).** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
+**Status:** **0.7.0 · 18 Nov 2026 · v1 complete and every hands-on check passed; card emblems added (§13); Elysium, the third theme, built (§14); sheets open on a double-click, and making things moved off the right-click (§15).** M0–M5 done and signed off by James on 30 Oct: the M3 lock and deleted-actor checks, the M4 stutter check (one slight stutter, which he judged acceptable) and the M5 ten-minute check with a player. M6 (mystery states, §10) built 28 Oct and checked by hand on the live server. **Cork, the second theme, is done** — the next items are in §10 (M7, gated) and the list at the end of it.
 **Owner:** James (NidhCthon)
 **Repo:** `K:\threadwork` → `github.com/NidhCthon/threadwork` (public, MIT)
 
@@ -133,12 +133,13 @@ The page types are `threadwork.card`, `threadwork.string` and `threadwork.frame`
 - **Adding cards:**
   - Drag an Actor, Item, JournalEntry or JournalEntryPage from the sidebar onto the board to make a document card. This uses the `dropCanvasData` hook, which returns `false` so core does not try to create a token.
   - Double-click empty space to make a text card.
-  - Double-click a card to edit its caption or text.
+  - The Party Board tools on the left make a note, a concept or a frame in the middle of the view, and **N** opens the same choices at the pointer (§15).
+- **Double-click a card:** a character, item or journal card opens its sheet, as it would from the sidebar. A note or concept opens its words for editing, and so does a card whose sheet you can't see (§15).
 - **Drawing strings:** hover a card to show its edge handles, then drag from a handle. A live curve follows the cursor and snaps onto the card you drop on, and the label box opens straight away. Press Enter or click away to commit. An empty label is allowed.
-- **Right-click menu:** visibility, colour, arrows, hub on/off, lock (GM only), delete, and "open sheet".
-- **Frames:** made from a small toolbar button or the right-click menu on empty space, and resized by dragging their edges.
+- **Right-click menu** on a card, string or frame: visibility, colour, arrows, hub on/off, caption, lock (GM only), delete, and "open sheet". It opens on release, and only if the pointer did not move. Right-click on empty board does nothing, so right-drag is only ever a pan (§15).
+- **Frames:** made from the toolbar or the N menu, and resized by dragging their edges.
 - **Alignment guides:** while you drag, a card snaps to the edges and centres of nearby cards within 8 screen px, and guide lines show. We write this ourselves, about 100 lines.
-- **Keys:** Ctrl+Z / Ctrl+Shift+Z for undo/redo, and Delete to remove the selection.
+- **Keys:** Ctrl+Z / Ctrl+Shift+Z for undo/redo, Delete to remove the selection, and N for the make menu. N can be rebound in Configure Controls.
 
 ### 5.6 Look and motion (Constellation)
 
@@ -445,3 +446,19 @@ For SF by Night, the painting is Paradox's grand lobby (`Locations33`, 1296 by 8
 The preview takes `?theme=elysium&painting=assets/backdrops/elysium-lobby.jpg&emblems=assets/clans/ventrue.png,assets/clans/brujah.png`. The serve script now passes `/assets/` through to the local Foundry.
 
 Still to check by hand in Foundry: the look with the table's own portraits, the painting loaded through Foundry's texture loader, and how the board feels when panning over the painting.
+
+## 15. Opening sheets, and making things without a right-click (18 Nov 2026, 0.7.0)
+
+James noticed two problems at the table.
+
+**Sheets.** A card's sheet could only be opened from its right-click menu, and a double-click on a card edited its caption. In Foundry a double-click opens a sheet everywhere else: on a token, in the sidebar. Now a double-click on a character, item or journal card opens its sheet, and a journal page opens inside its journal. A note or concept still opens its words for editing. So does a card whose sheet this user can't see, so the double-click still does something for them. Captions are edited from the right-click menu.
+
+The same change closed a leak. The menu offered **Open sheet** on a card the GM had shadowed, and that sheet would tell a player what the `???` hides. Both paths now go through one check, `ThreadworkLayer#sheetFor`: the card is a document card, it is not shadowed from this user and not missing, and the user has at least Limited permission on the document.
+
+**Right-drag.** People pan by right-dragging, and a right-click on empty board opened the "New note / concept / frame here" menu. Core fires `clickRight` on the press, before it can know the press is the start of a pan, so the menu opened under everyone who panned from empty board, with "New note here" already focused. Card, string and frame menus never had this problem, because they open on release and only if the pointer stayed put. The empty-board menu is gone: the layer no longer handles `_onClickRight` at all. Making things moved to:
+
+- **The tools on the left.** Note and frame were already there; concept was missing and now has a button.
+- **N** (`threadwork.make`, rebindable). It opens the same three choices at the pointer, or in the middle of the view when the pointer is off the board. The pointer position is core's `canvas.mousePosition`. The key passes through when the board layer is not active, so it doesn't take N away from a system on other scenes.
+- A double-click on empty board still makes a note.
+
+Checked in the local world: a double-click on Kyra's card opened her pf2e sheet without opening the caption editor; N opened the menu at the pointer, and a concept made from it landed centred there; core's own right-press callback on empty board opened nothing.

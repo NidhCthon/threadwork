@@ -6,6 +6,16 @@ Players drag characters, items and journals onto the board, draw labeled strings
 
 The GM can also **shadow** a card or a string, so the table sees that something is there — a `???` plate, a dashed line to nowhere — without seeing what. Strings say how sure the table is: a player marks a hunch as a rumour, and the GM confirming it is what makes it canon. Shadowing decides what is drawn, not what is secret; Foundry sends every page to every client, so anything that must not be read belongs outside the world until it is revealed.
 
+### On the board
+
+- Drag an actor, item or journal from the sidebar to add its card. Double-click a card to open its sheet.
+- Make a note, concept or frame with the Party Board tools on the left, or press **N** to make one where the pointer is. Double-clicking empty board also makes a note.
+- Drag from the handles on a card's edge to draw a string to another card.
+- Right-click a card, string or frame for its menu. Right-dragging pans the board, as it does on any scene.
+- Ctrl+Z and Ctrl+Shift+Z undo and redo your own changes. Delete removes whatever the pointer is over.
+
+### Looks
+
 Three looks, chosen for the whole world in the module settings: **Constellation**, a night sky where light runs along the strings; **Cork**, a detective's board of brown cork, cream index cards and red twine; and **Elysium**, a court's salon of crimson damask, cream cards with wax seals, sepia cameo portraits and silk ribbons in gilt frames.
 
 Elysium can hang a painting behind its damask. Pick an image from your Data folder in **Party Board painting**. It stays still behind the view while the board pans and zooms over it, so an ordinary illustration is big enough. Threadwork ships no paintings; use art you are allowed to use at your table.

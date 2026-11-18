@@ -44,6 +44,17 @@ Hooks.once("init", () => {
       return true;
     }
   });
+  // Making things is a key, not a right-click, because people right-drag to pan (SPEC.md 15).
+  game.keybindings.register(MODULE_ID, "make", {
+    name: "Make something on the Party Board",
+    hint: "Opens the menu of new notes, concepts and frames at the pointer.",
+    editable: [{ key: "KeyN" }],
+    onDown: () => {
+      const layer = canvas?.[MODULE_ID];
+      if (!layer?.view || !layer.active) return false;
+      return layer.openMakeMenu();
+    }
+  });
 });
 
 // After every init (a system may swap in its own actor directory, as pf2e

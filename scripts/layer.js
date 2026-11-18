@@ -114,11 +114,14 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
         if (isBoardScene(canvas.scene)) canvas[MODULE_ID].activate();
         else goToBoard();
       },
+      // Everything that can be made has a button here, so nothing depends on
+      // a right-click: people right-drag to pan (SPEC.md 15).
       tools: {
         board: { name: "board", order: 1, title: "Arrange the board", icon: "fa-solid fa-hand-pointer", interaction: true },
         note: { name: "note", order: 2, title: "New note in the middle of the view", icon: "fa-solid fa-note-sticky", button: true, onChange: () => canvas[MODULE_ID]?.createNote("text", here()) },
-        frame: { name: "frame", order: 3, title: "New frame in the middle of the view", icon: "fa-regular fa-square", button: true, onChange: () => canvas[MODULE_ID]?.createFrame(here()) },
-        back: { name: "back", order: 4, title: "Back to where you were", icon: "fa-solid fa-arrow-left", button: true, onChange: () => goBack() }
+        concept: { name: "concept", order: 3, title: "New concept in the middle of the view", icon: "fa-solid fa-sun", button: true, onChange: () => canvas[MODULE_ID]?.createNote("hub", here()) },
+        frame: { name: "frame", order: 4, title: "New frame in the middle of the view", icon: "fa-regular fa-square", button: true, onChange: () => canvas[MODULE_ID]?.createFrame(here()) },
+        back: { name: "back", order: 5, title: "Back to where you were", icon: "fa-solid fa-arrow-left", button: true, onChange: () => goBack() }
       }
     };
   }
@@ -149,6 +152,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     view.onLabelChanged = (id, label) => this.updatePages([{ _id: id, system: { label } }]);
     view.onCaptionChanged = (id, text) => this.#captionChanged(id, text);
     view.onEditCancelled = (id) => this.#editCancelled(id);
+    view.onOpenCard = (id) => this.openCard(id);
     view.onConnect = (from, to) => this.#connect(from, to);
     view.onContextMenu = ({ kind, id, clientX, clientY }) => this.#openMenu(kind, id, { x: clientX, y: clientY });
     view.onFrameMoved = (id, position, carried) => this.updatePages([
@@ -386,30 +390,65 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
   }
 
   /* -------------------------------------------- */
-  /*  Clicks on empty board                       */
+  /*  Opening a card's sheet                      */
   /* -------------------------------------------- */
 
-  #onEmptyBoard(event) {
-    if (!this.view) return null;
-    const point = event.getLocalPosition(this);
-    return this.view.itemAt(point) ? null : point;
+  /**
+   * The document behind a card, if this user may open its sheet. Not for a
+   * note or concept, a card whose document is gone, or a card shadowed from
+   * this user: its sheet would say what the "???" hides (SPEC.md 10).
+   */
+  sheetFor(id) {
+    const card = this.view?.cards.get(id)?.data;
+    if (!card || card.kind !== "document" || card.shadowed || card.missing) return null;
+    const doc = resolve(boardJournal()?.pages.get(id)?.system.uuid);
+    return doc?.testUserPermission?.(game.user, "LIMITED") ? doc : null;
   }
+
+  /** Open a card's sheet, as a double-click in the sidebar would. Returns whether one opened. */
+  openCard(id) {
+    const doc = this.sheetFor(id);
+    if (!doc) return false;
+    openSheet(doc);
+    return true;
+  }
+
+  /* -------------------------------------------- */
+  /*  Clicks and keys that make things            */
+  /* -------------------------------------------- */
 
   /** Double-click empty board (or inside a frame) for a note. */
   _onClickLeft2(event) {
-    const point = this.#onEmptyBoard(event);
-    if (point) this.createNote("text", point);
+    if (!this.view) return;
+    const point = event.getLocalPosition(this);
+    if (!this.view.itemAt(point)) this.createNote("text", point);
   }
 
-  /** Right-click empty board for things to make there. */
-  _onClickRight(event) {
-    const point = this.#onEmptyBoard(event);
-    if (!point) return;
-    showMenu({ x: event.clientX, y: event.clientY }, [
+  // No _onClickRight: core fires it on the press, before it knows the press
+  // is the start of a pan, so a menu there opened under everyone who
+  // right-dragged across empty board (SPEC.md 15). Things are made from the
+  // tools on the left, a double-click, or the key below.
+
+  /**
+   * The "make something" key (N unless rebound): a menu of new things at the
+   * pointer, or in the middle of the view when the pointer is off the board.
+   * Returns false when there is no board, so the key passes on to others.
+   */
+  openMakeMenu() {
+    if (!this.view) return false;
+    const onBoard = canvas.app.view.matches(":hover");
+    // Core keeps the last pointer position on the board, in stage coordinates.
+    const stagePoint = onBoard ? canvas.mousePosition : canvas.stage.pivot;
+    const point = this.toLocal(stagePoint, canvas.stage);
+    const screen = canvas.stage.toGlobal(stagePoint);
+    const rect = canvas.app.view.getBoundingClientRect();
+    const at = { x: rect.left + screen.x, y: rect.top + screen.y };
+    showMenu(at, [
       { label: "New note here", icon: "fa-solid fa-note-sticky", action: () => this.createNote("text", point) },
       { label: "New concept here", icon: "fa-solid fa-sun", action: () => this.createNote("hub", point) },
       { label: "New frame here", icon: "fa-regular fa-square", action: () => this.createFrame(point) }
     ], { title: "Party Board" });
+    return true;
   }
 
   /* -------------------------------------------- */
@@ -466,7 +505,7 @@ export class ThreadworkLayer extends foundry.canvas.layers.InteractionLayer {
     const card = this.view?.cards.get(id)?.data;
     const doc = s.uuid ? resolve(s.uuid) : null;
     const items = [];
-    if (doc && doc.testUserPermission?.(game.user, "LIMITED")) items.push({ label: "Open sheet", icon: "fa-solid fa-book-open", action: () => openSheet(doc) });
+    if (this.sheetFor(id)) items.push({ label: "Open sheet", icon: "fa-solid fa-book-open", action: () => this.openCard(id) });
     if (!editable) {
       items.push({ label: LOCKED_NOTE, icon: "fa-solid fa-lock", action: () => {} });
       return showMenu(at, items, { title: card?.name ?? page.name });
